@@ -1,3 +1,4 @@
+# Likely no use for this class
 class Cell:
     def __init__(self):
         self.temperature = 0.0
