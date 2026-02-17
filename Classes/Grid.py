@@ -6,9 +6,27 @@ class Grid:
         self.width = width
         self.height = height
 
-        self.cells = np.empty((height, width), dtype=object)
+        # weather
+        self.temperature = np.zeros((self.height, self.width), dtype=np.float32)
+        self.humidity = np.zeros((self.height, self.width), dtype=np.float32)
+        self.rainVolume = np.zeros((self.height, self.width), dtype=np.float32)
+        self.windSpeed = np.zeros((self.height, self.width), dtype=np.float32)
+        self.windDirection = np.zeros((self.height, self.width), dtype=np.float32)
+
+        # terrain
+        self.water = np.zeros((self.height, self.width), dtype=bool)
+        self.treeCoverage = np.zeros((self.height, self.width), dtype=np.float32)
+
+        # fire states
+        self.burning = np.zeros((self.height, self.width), dtype=bool)
+        self.burnt = np.zeros((self.height, self.width), dtype=bool)
+
+        # fire probabilities
+        self.pi = np.zeros((self.height, self.width), dtype=np.float32)
+        self.pe = np.zeros((self.height, self.width), dtype=np.float32)
 
 
+    # may not need
     def GetNeighbours(self, x, y):
         neighbours = []
 
