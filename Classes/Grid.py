@@ -12,6 +12,7 @@ class Grid:
         self.rainVolume = np.zeros((self.height, self.width), dtype=np.float32)
         self.windSpeed = np.zeros((self.height, self.width), dtype=np.float32)
         self.windDirection = np.zeros((self.height, self.width), dtype=np.float32)
+        self.elevation = np.zeros((self.height, self.width), dtype=np.float32)
 
         # terrain
         self.water = np.zeros((self.height, self.width), dtype=bool)
