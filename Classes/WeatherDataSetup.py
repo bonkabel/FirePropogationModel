@@ -89,14 +89,14 @@ class WeatherDataSetup:
             return openmeteo_requests.Client()
 
 
-    def _Upscaledata(self, coarseData):
+    def _UpscaleData(self, coarseData):
         """
         Interpolates coarse grid weather data to match the fine grid size
 
         Use bilinear interpolation to scale each 2D weather array
 
         :param coarseData: Dictionary mapping weather variable names to 2D NumPy arrays at coarse resolution.
-        :return: Dictionary mapping weather variable names to @d NumPy arrays at fine resolution
+        :return: Dictionary mapping weather variable names to 2d NumPy arrays at fine resolution
         """
         scaleFactor = self.gridSize / self.coarseSize
 
@@ -163,4 +163,4 @@ class WeatherDataSetup:
 
 
 
-        return self._Upscaledata(coarseData)
+        return self._UpscaleData(coarseData)
