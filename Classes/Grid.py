@@ -3,7 +3,7 @@ import numpy as np
 
 class Grid:
     """
-    Contains information for the fire simulation in the form of 2D arrays.
+    Holds information for the fire simulation in the form of 2D arrays.
     Meant for use with data from WeatherDataSetup and TerrainDataSetup
     """
     def __init__(self, weatherData, terrainData):
