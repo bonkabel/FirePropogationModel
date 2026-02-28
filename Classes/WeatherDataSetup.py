@@ -6,6 +6,14 @@ from retry_requests import retry
 from scipy.ndimage import zoom
 
 class WeatherDataSetup:
+    """
+    Creates terrain layers for the simulation grid
+
+    Retrieves:
+    - Weather data from open-meteo
+
+    Usage: Call CreateWeatherLayers() to create 2d arrays of weather data
+    """
     def __init__(self, southLat, westLon, gridSize, cellResolution, coarseResolution, cache):
         """
         Creates a geographic weather grid, gets coarse weather data from open-meteo, and interpolates it to a finer resolution
@@ -107,7 +115,7 @@ class WeatherDataSetup:
 
         return fineData
 
-    def CreateGrid(self):
+    def CreateWeatherLayers(self):
         """
         Fetches weather data for all coarse grid points in batches.
         Stores the results in 2D arrays.
@@ -115,7 +123,7 @@ class WeatherDataSetup:
 
         :return: Dictionary containing fine resolution 2D NumPy arrays for reach weather variable
         """
-        batchSize = 125
+        batchSize = 100
 
         coarseData = {
             "temperature": np.zeros((self.coarseSize, self.coarseSize)),
