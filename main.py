@@ -18,10 +18,8 @@ if __name__ == '__main__':
     # fireGrid = FireGrid(south=23.70,north=23.90,west=90.35,east=90.50,rows=60,cols=60)
     # fireGrid.show_map()
 
-
-
     # Testing WeatherDataSetup
-    weatherSetup = WeatherDataSetup(42.817816, -80.633052, 100, 2, 10, True)
+    weatherSetup = WeatherDataSetup(42.817816, -80.633052, 100, 2, 10, True, False, True)
     weatherLayers = weatherSetup.CreateWeatherLayers()
     print("Weather grid data done")
 
@@ -31,6 +29,7 @@ if __name__ == '__main__':
     print("Terrain grid data done")
 
     # Testing Grid
-    grid = Grid(weatherLayers, terrainLayers)
+    grid = Grid(weatherLayers, terrainLayers, gridSize)
+    print("Grid setup")
 
 
