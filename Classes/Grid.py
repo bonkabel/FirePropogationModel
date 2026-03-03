@@ -14,6 +14,7 @@ class Grid:
 
     def __init__(self, weatherData, terrainData, gridSize):
 
+
         # Weather
         self.temperature = weatherData['temperature']
         self.humidity = weatherData['humidity']
@@ -26,6 +27,13 @@ class Grid:
         self.slopeDirection = terrainData['slope_direction']
         self.water = terrainData['water']
         self.trees = terrainData['trees']
+
+        # State information
+        self.state = np.zeros((gridSize, gridSize), dtype=int)
+        self.fireTimer = np.zeros((gridSize, gridSize), dtype=float) # How long the fire has been burning for
+        self.ignitionProbability = np.zeros((gridSize, gridSize), dtype=float) # Probability of ignition
+
+
 
         # State information
         self.state = np.zeros((gridSize, gridSize), dtype=int)
