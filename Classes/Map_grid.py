@@ -14,14 +14,10 @@ import random
 from locationaAPI import Location
 
 class FireGrid():
-    def __init__(self, south, north, west, east, rows=10, cols=10):
-        self.south = south
-        self.north = north
-        self.west = west
-        self.east = east
+    def __init__(self, rows, cols):
         self.rows = rows
         self.cols = cols
-        self.location = Location("Brampton", "Canada")
+        self.location = Location("London", "Canada")
         self.lat, self.lon = self.location.coordinates()
 
         self.north = float(self.lat) + 0.1
@@ -55,11 +51,11 @@ class FireGrid():
 
                 # Bounds for the grid
                 bounds = [
-                    [self.south + i*self.lat_step,
-                     self.west + j*self.lon_step],
+                    [(self.south) + ((i - 5) * self.lat_step),
+                     (self.west) + ((j -5) * self.lon_step)],
 
-                    [self.south + (i+1)*self.lat_step,
-                     self.west + (j+1)*self.lon_step]
+                    [(self.south) + ((i+6)*self.lat_step),
+                     (self.west) + ((j+6)*self.lon_step)]
                 ]
 
                 # Creating grid rectangle on top of the map
@@ -67,7 +63,7 @@ class FireGrid():
                     bounds=bounds,
                     fill=True,
                     fill_color=colormap(value),
-                    fill_opacity=0.7,
+                    fill_opacity=0.15,
                     color=None,
                     weight=0
                 ).add_to(m)
@@ -77,18 +73,13 @@ class FireGrid():
 
         # Saving the html file
         m.save("full_grid_map.html")
-        print("Saved as full_grid_map.html")
         # Opening it on the browser
         webbrowser.open("file://" + os.path.realpath("full_grid_map.html"))
 
 # Values for map location
 grid = FireGrid(
-    south=23.70,
-    north=23.90,
-    west=90.35,
-    east=90.50,
-    rows=10,
-    cols=10
+    rows=100,
+    cols=100
 )
 
 grid.show_map()

@@ -48,3 +48,6 @@ terraform.rc
 
 # Ignore the venv file
 venv/
+
+# Ignore the test file
+test.py

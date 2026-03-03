@@ -1,45 +1,33 @@
 import numpy as np
 
-
 class Grid:
-    def __init__(self, width, height):
-        self.width = width
-        self.height = height
+    """
+    Holds information for the fire simulation in the form of 2D arrays.
+    Meant for use with data from WeatherDataSetup and TerrainDataSetup
+    """
 
-        # weather
-        self.temperature = np.zeros((self.height, self.width), dtype=np.float32)
-        self.humidity = np.zeros((self.height, self.width), dtype=np.float32)
-        self.rainVolume = np.zeros((self.height, self.width), dtype=np.float32)
-        self.windSpeed = np.zeros((self.height, self.width), dtype=np.float32)
-        self.windDirection = np.zeros((self.height, self.width), dtype=np.float32)
-        self.elevation = np.zeros((self.height, self.width), dtype=np.float32)
-
-        # terrain
-        self.water = np.zeros((self.height, self.width), dtype=bool)
-        self.treeCoverage = np.zeros((self.height, self.width), dtype=np.float32)
-
-        # fire states
-        self.burning = np.zeros((self.height, self.width), dtype=bool)
-        self.burnt = np.zeros((self.height, self.width), dtype=bool)
-
-        # fire probabilities
-        self.pi = np.zeros((self.height, self.width), dtype=np.float32)
-        self.pe = np.zeros((self.height, self.width), dtype=np.float32)
+    # State constants
+    UNBURNED = 0
+    BURNING = 1
+    BURNED_OUT = 2
 
 
-    # may not need
-    def GetNeighbours(self, x, y):
-        neighbours = []
+    def __init__(self, weatherData, terrainData, gridSize):
 
-        for dy in [-1, 0, 1]:
-            for dx in [-1, 0, 1]:
-                if dx == 0 and dy == 0:
-                    continue
+        # Weather
+        self.temperature = weatherData['temperature']
+        self.humidity = weatherData['humidity']
+        self.windSpeed = weatherData['wind_speed']
+        self.windDirection = weatherData['wind_direction']
 
-                nx, ny = x + dx, y + dy
+        # Terrain
+        self.elevation = terrainData['elevation']
+        self.slopeMagnitude = terrainData['slope_magnitude']
+        self.slopeDirection = terrainData['slope_direction']
+        self.water = terrainData['water']
+        self.trees = terrainData['trees']
 
-                if 0 <= nx < self.width and 0 <= ny < self.height:
-                    neighbours.append(self.cells[ny, nx])
-
-        return neighbours
-
+        # State information
+        self.state = np.zeros((gridSize, gridSize), dtype=int)
+        self.fireTimer = np.zeros((gridSize, gridSize), dtype=float) # How long the fire has been burning for
+        self.ignitionProbability = np.zeros((gridSize, gridSize), dtype=float) # Probability of ignition
