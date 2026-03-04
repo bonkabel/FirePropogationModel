@@ -20,7 +20,7 @@ class Fire_Spread():
             elif m0 > 250.0:
                 m0 = 250.0
         
-        ed = 0.942(self.humidity ** (0.679)) + (11.0 * math.exp((self.humidity - 100.0) / 10.0)) + 0.18 * (21.1 - self.temperature) * (1.0 - (1.0 / math.exp(0.1150 * self.humidity)))
+        ed = 0.942 * (self.humidity ** (0.679)) + (11.0 * math.exp((self.humidity - 100.0) / 10.0)) + 0.18 * (21.1 - self.temperature) * (1.0 - (1.0 / math.exp(0.1150 * self.humidity)))
         
         if m0 < ed:
             ew = 0.618 * (self.humidity ** 0.753) + (10.0 * math.exp((self.humidity - 100.0) / 10.0)) + 0.18 * (21.1 - self.temperature) * (1.0 - 1.0 / math.exp(0.115 * self.humidity))
@@ -54,7 +54,11 @@ class Fire_Spread():
         ff = 19.115 * math.exp(m0 * (-0.1386)) * (1.0 + (m0 ** 5.31) / 49300000.0)
         isi = ff * math.exp(0.05039 * self.wind)
         return isi
+
+    
             
-fire_spread = Fire_Spread()
+fire_spread = Fire_Spread(81.01656342, 6.36141491, 0, -9.5479798)
 ffmc = fire_spread.ffmccalculation()
-fire_spread.isicalc(ffmc)
+isi = fire_spread.isicalc(ffmc)
+print(ffmc)
+print(isi)

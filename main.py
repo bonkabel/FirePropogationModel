@@ -1,5 +1,5 @@
 from Classes.Grid import Grid
-from Classes.Map_grid import FireGrid
+# from Classes.Map_grid import FireGrid
 from Classes.TerrainDataSetup import TerrainDataSetup
 from Classes.WeatherDataSetup import WeatherDataSetup
 
@@ -22,14 +22,17 @@ if __name__ == '__main__':
     # Testing WeatherDataSetup
     weatherSetup = WeatherDataSetup(42.817816, -80.633052, 100, 2, 10, True, False, True)
     weatherLayers = weatherSetup.CreateWeatherLayers()
+    print(weatherLayers)
+    with open("output.txt", 'w') as f:
+        f.write(str(weatherLayers))
     print("Weather grid data done")
 
-    # Testing TerrainDataSetup
-    terrainSetup = TerrainDataSetup(southLat, westLon, gridSize, cellResolution)
-    terrainLayers = terrainSetup.CreateTerrainLayers()
-    print("Terrain grid data done")
+    # # Testing TerrainDataSetup
+    # terrainSetup = TerrainDataSetup(southLat, westLon, gridSize, cellResolution)
+    # terrainLayers = terrainSetup.CreateTerrainLayers()
+    # print("Terrain grid data done")
 
-    # Testing Grid
-    grid = Grid(weatherLayers, terrainLayers, gridSize)
-    print("Grid setup")
+    # # Testing Grid
+    # grid = Grid(weatherLayers, terrainLayers, gridSize)
+    # print("Grid setup")
 
