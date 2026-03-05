@@ -11,7 +11,7 @@ import numpy as np
 import folium
 import branca.colormap as cm
 import random
-from locationaAPI import Location
+from Classes.locationaAPI import Location
 
 class FireGrid():
     def __init__(self, rows, cols):
