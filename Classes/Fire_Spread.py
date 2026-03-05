@@ -1,5 +1,6 @@
 """This file takes the weather parameters and generate rate of spread of fire as output"""
 import math
+from constants import constants
 
 class Fire_Spread():
     def __init__(self, humidity, wind, precipitation, temperature):
@@ -8,6 +9,11 @@ class Fire_Spread():
         self.wind = wind
         self.precipitation = precipitation
         self.temperature = temperature
+        self.constants = constants()
+        self.a = self.constants["C-1"]["a"]
+        self.b = self.constants["C-1"]["b"]
+        self.c = self.constants["C-1"]["c"]
+
 
     def ffmccalculation(self):
         m0 = (147.2 * (101.0 - self.ffmc0)) / (59.5 + self.ffmc0)
@@ -55,10 +61,15 @@ class Fire_Spread():
         isi = ff * math.exp(0.05039 * self.wind)
         return isi
 
-    
+
+    def roscalc(self, isi):
+        ros = self.a * (1 - (math.exp((-self.b) * isi))) ** self.c
+        return ros
             
 fire_spread = Fire_Spread(81.01656342, 6.36141491, 0, -9.5479798)
 ffmc = fire_spread.ffmccalculation()
 isi = fire_spread.isicalc(ffmc)
+ros = fire_spread.roscalc(isi)
 print(ffmc)
 print(isi)
+print(ros)
