@@ -7,11 +7,40 @@ there, rate of wind blowing.
 
 import webbrowser
 import os
+import math
 import numpy as np
 import folium
 import branca.colormap as cm
 import random
-from Classes.locationaAPI import Location
+from locationaAPI import Location
+
+
+#Haversine method to calculate the width and height of the map and cells
+def haversine(p1, p2):
+    """
+    Returns distance in meters between two (lat, lon) points
+    """
+
+    R = 6371000  # Earth radius in meters
+
+    lat1, lon1 = p1
+    lat2, lon2 = p2
+
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+
+    dphi = math.radians(lat2 - lat1)
+    dlambda = math.radians(lon2 - lon1)
+
+    a = (
+        math.sin(dphi / 2) ** 2
+        + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
+    )
+
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+    return R * c
+
 
 class FireGrid():
     def __init__(self, rows, cols):
@@ -31,13 +60,36 @@ class FireGrid():
         # Fire affinity values (0–1)
         self.affinity = np.random.rand(rows, cols)
 
+        # Calculate real map size
+        self.calculate_map_size()
+
+    def calculate_map_size(self):
+
+        NW = (self.north, self.west)
+        NE = (self.north, self.east)
+        SW = (self.south, self.west)
+
+        width = haversine(NW, NE)
+        height = haversine(SW, NW)
+
+        self.cell_width = width / self.cols
+        self.cell_height = height / self.rows
+
+        width = f"{width/1000:.2f}"
+        height = f"{height/1000:.2f}"
+
+        print("\nMap Dimensions")
+        print("----------------------")
+        print(f"Width  : {width} km")
+        print(f"Height : {height} km")
+        print(f"Cell width  : {self.cell_width:.2f} m")
+        print(f"Cell height : {self.cell_height:.2f} m")
+        return width, height, self.cell_width, self.cell_height
+
     def show_map(self):
-        # Deciphering the center of the map
-        center_lat = self.lat
-        center_lon = self.lon
 
         # Shows  map centring with the location along with the zoom level at start
-        m = folium.Map(location=[center_lat, center_lon], zoom_start=12)
+        m = folium.Map(location=[self.lat, self.lon], zoom_start=12)
 
         # Color gradient for grid ranging from 0 to 1
         colormap = cm.linear.YlOrRd_09.scale(0, 1)
