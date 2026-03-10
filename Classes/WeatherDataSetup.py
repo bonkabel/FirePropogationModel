@@ -168,6 +168,17 @@ class WeatherDataSetup:
 
         return fineData
 
+    def _AverageData(self, fineData):
+        """
+        Takes the fine data and averages multiple times worth of data to one 2d array
+        :param fineData: The fine data to average
+        :return: The averaged fine data
+        """
+        return {key: np.mean(arrays, axis=0) for key, arrays in fineData.items()}
+
+
+
+
     def CreateWeatherLayers(self):
         """
         Fetches weather data for all coarse grid points in batches.
@@ -241,6 +252,8 @@ class WeatherDataSetup:
                     coarseData["wind_direction"][d][row][col] = allWindDirection[ni]
 
         fineData = self._UpscaleData(coarseData)
+
+        fineData = self._AverageData(fineData)
 
         if self.cacheData:
             self._SaveToCache(fineData)
