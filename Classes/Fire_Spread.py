@@ -10,12 +10,12 @@ class Fire_Spread():
         self.precipitation = precipitation
         self.temperature = temperature
         self.constants = constants()
-        self.a = self.constants["C-1"]["a"]
-        self.b = self.constants["C-1"]["b"]
-        self.c = self.constants["C-1"]["c"]
+        self.a = self.constants["O-1"]["a"]
+        self.b = self.constants["O-1"]["b"]
+        self.c = self.constants["O-1"]["c"]
 
 
-    def ffmccalculation(self):
+    def roscalculation(self):
         m0 = (147.2 * (101.0 - self.ffmc0)) / (59.5 + self.ffmc0)
         if self.precipitation > 0.5:
             rf = self.precipitation - 0.5
@@ -43,33 +43,23 @@ class Fire_Spread():
 
         elif m0 > ed:
             kl = 0.424 * (1.0 - (self.humidity / 100.0) ** 1.7) + (0.694 * math.sqrt(self.wind)) * (1.0 - (self.humidity / 100.0) ** 8)
-            kw = kl * (0.581 * math.exp(0.365 * self.temperature))
+            kw = kl * (0.581 * math.exp(0.0365 * self.temperature))
             m = ed + (m0 - ed) / 10.0 ** kw
         
-        ffmc = (59.5 * (250.0 - m)) / (147.2 + m)
-        if ffmc > 101.0:
-            ffmc = 101.0
-        elif ffmc <= 0.0:
-            ffmc = 0.0
-
-        return ffmc
-    
-
-    def isicalc(self, ffmc):
-        m0 = 147.2 * (101.0 - ffmc) / (59.5 + ffmc)
+        self.ffmc = (59.5 * (250.0 - m)) / (147.2 + m)
+        if self.ffmc > 101.0:
+            self.ffmc = 101.0
+        elif self.ffmc <= 0.0:
+            self.ffmc = 0.0
+        
+        # ISI calculation    
+        m0 = 147.2 * (101.0 - self.ffmc) / (59.5 + self.ffmc)
         ff = 19.115 * math.exp(m0 * (-0.1386)) * (1.0 + (m0 ** 5.31) / 49300000.0)
-        isi = ff * math.exp(0.05039 * self.wind)
-        return isi
-
-
-    def roscalc(self, isi):
-        ros = self.a * (1 - (math.exp((-self.b) * isi))) ** self.c
+        self.isi = ff * math.exp(0.05039 * self.wind)
+      
+        # ROS calculation
+        ros = self.a * (1 - (math.exp((-self.b) * self.isi))) ** self.c
         return ros
             
 fire_spread = Fire_Spread(81.01656342, 6.36141491, 0, -9.5479798)
-ffmc = fire_spread.ffmccalculation()
-isi = fire_spread.isicalc(ffmc)
-ros = fire_spread.roscalc(isi)
-print(ffmc)
-print(isi)
-print(ros)
+ros = fire_spread.roscalculation()

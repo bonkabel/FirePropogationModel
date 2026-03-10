@@ -1,5 +1,5 @@
 from Classes.Grid import Grid
-from Classes.Map_grid import FireGrid
+# from Classes.Map_grid import FireGrid
 from Classes.TerrainDataSetup import TerrainDataSetup
 from Classes.WeatherDataSetup import WeatherDataSetup
 
@@ -15,24 +15,26 @@ if __name__ == '__main__':
     coarseResolution = 10 #km
     cache = True
 
-    # Testing Map_grid
-    fireGrid = FireGrid(rows=60,cols=60)
-    fireGrid.show_map()
+    # # Testing Map_grid
+    # fireGrid = FireGrid(rows=60,cols=60)
+    # fireGrid.show_map()
 
     # Testing WeatherDataSetup
     weatherSetup = WeatherDataSetup(42.817816, -80.633052, 100, 2, 10, True, False, True)
     weatherLayers = weatherSetup.CreateWeatherLayers()
-    print(weatherLayers)
+    print(weatherLayers["wind_direction"][0])
     with open("output.txt", 'w') as f:
-        f.write(str(weatherLayers))
+        f.write(str(weatherLayers["wind_direction"][0]))
+    
+    
     print("Weather grid data done")
 
     # Testing TerrainDataSetup
-    terrainSetup = TerrainDataSetup(southLat, westLon, gridSize, cellResolution)
-    terrainLayers = terrainSetup.CreateTerrainLayers()
-    print("Terrain grid data done")
+    # terrainSetup = TerrainDataSetup(southLat, westLon, gridSize, cellResolution)
+    # terrainLayers = terrainSetup.CreateTerrainLayers()
+    # print("Terrain grid data done")
 
     # Testing Grid
-    grid = Grid(weatherLayers, terrainLayers, gridSize)
-    print("Grid setup")
+    # grid = Grid(weatherLayers, terrainLayers, gridSize)
+    # print("Grid setup")
 
