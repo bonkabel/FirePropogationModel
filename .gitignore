@@ -51,3 +51,5 @@ venv/
 
 # Ignore the test file
 test.py
+
+**/pycache/*
