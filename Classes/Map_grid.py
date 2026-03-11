@@ -134,8 +134,6 @@ class FireGridWindROS:
                             if self.fire_state[ni, nj] == 0:
                                 new_state[ni, nj] = 1
                                 
-                                time.sleep(self.sleep_time)
-
                     # current cell becomes burned
                     new_state[i, j] = 2
 
@@ -147,6 +145,7 @@ class FireGridWindROS:
 
         for _ in range(steps):
             self.spread_fire()
+            time.sleep(self.sleep_time)
 
 
     def generate_map(self, filename="fire_wind_ros.html"):
