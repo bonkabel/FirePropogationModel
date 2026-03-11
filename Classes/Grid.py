@@ -12,14 +12,17 @@ class Grid:
     BURNED_OUT = 2
 
 
-    def __init__(self, weatherData, terrainData, gridSize):
-
+    def __init__(self, gridSize, cellSize, weatherData, terrainData, rosData):
 
         # Weather
-        self.temperature = weatherData['temperature']
-        self.humidity = weatherData['humidity']
-        self.windSpeed = weatherData['wind_speed']
-        self.windDirection = weatherData['wind_direction']
+        self.temperature = np.array(weatherData['temperature'], dtype=float)
+        self.humidity = np.array(weatherData['humidity'], dtype=float)
+        self.windSpeed = np.array(weatherData['wind_speed'], dtype=float)
+        self.windDirection = np.array(weatherData['wind_direction'], dtype=float)
+        self.precipitation = np.array(weatherData['precipitation'], dtype=float)
+
+        self.gridSize = gridSize
+        self.cellSize = cellSize * 1000
 
         # Terrain
         self.elevation = terrainData['elevation']
@@ -28,15 +31,12 @@ class Grid:
         self.water = terrainData['water']
         self.trees = terrainData['trees']
 
-        # State information
-        self.state = np.zeros((gridSize, gridSize), dtype=int)
-        self.fireTimer = np.zeros((gridSize, gridSize), dtype=float) # How long the fire has been burning for
-        self.ignitionProbability = np.zeros((gridSize, gridSize), dtype=float) # Probability of ignition
-
-
+        # Initial spread values
+        self.ros = rosData
 
         # State information
         self.state = np.zeros((gridSize, gridSize), dtype=int)
         self.fireTimer = np.zeros((gridSize, gridSize), dtype=float) # How long the fire has been burning for
         self.ignitionProbability = np.zeros((gridSize, gridSize), dtype=float) # Probability of ignition
+
 
