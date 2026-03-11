@@ -14,7 +14,7 @@ class Simulation:
         """
         :param grid: A Grid object containing weather and terrain data
         :param dt: Delta time. The change in time for a step in the simulation
-        :param totalSteps: The total number of step the simulation runs
+        :param totalSteps: The total number of steps the simulation runs
         """
         self.grid = grid
         self.dt = dt
