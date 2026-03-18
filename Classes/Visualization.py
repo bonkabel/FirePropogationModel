@@ -5,23 +5,27 @@ import io
 import base64
 from PIL import Image
 from Classes.Grid import Grid
+import math
+import webbrowser
+import os
+from Classes.Fire_Spread import Fire_Spread
 
 
 class Visualization:
-
-    def __init__(self, simulation, southLat, westLon, northLat, eastLon):
+    def __init__(self, simulation, weatherlayers, terrainlayers, southLat, westLon, northLat, eastLon):
         self.sim = simulation
         self.southLat = southLat
         self.westLon = westLon
         self.northLat = northLat
         self.eastLon = eastLon
-
-    def _arrayToBase64(self, rgba):
-        img = Image.fromarray(rgba, "RGBA")
-        buf = io.BytesIO()
-        img.save(buf, format="PNG")
-        buf.seek(0)
-        return base64.b64encode(buf.read()).decode()
+        
+        self.temperature = weatherlayers["temperature"]
+        self.precipitation = weatherlayers["precipitation"]
+        self.humidity = weatherlayers["humidity"]
+        self.wind_speed = weatherlayers["wind_speed"]
+        self.trees = terrainlayers["trees"]
+        self.fire_spread = Fire_Spread(self.humidity, self.wind_speed, self.precipitation, self.temperature, self.trees)
+        self.ros, self.isi = self.fire_spread.roscalculation()
 
     def _stateToImage(self, state):
 
@@ -81,7 +85,7 @@ class Visualization:
         folium.raster_layers.ImageOverlay(
             image=f"data:image/png;base64,{img_str}",
             bounds=[[self.southLat, self.westLon], [self.northLat, self.eastLon]],
-            opacity=0.6,
+            opacity=0.1,
             name=label,
             show=show
         ).add_to(m)
@@ -133,6 +137,15 @@ class Visualization:
             show=False
         ).add_to(m)
 
+        # --- Fire Affinity Layer ---
+        # Compute affinity parameters (10 bins)
+        min_val = np.min(self.isi)
+        max_val = np.max(self.isi)
+        affinity_params = np.linspace(min_val, max_val, 10)
+        self.fire_affinity_grid = np.digitize(self.isi, affinity_params, right=True)
+        self._addDataLayer(m, self.fire_affinity_grid, cmap='hot', label='Fire Affinity', show=False)
+
+        # Layer control for static layers
         folium.LayerControl(collapsed=False).add_to(m)
 
         images = []
@@ -266,5 +279,5 @@ class Visualization:
         m.get_root().html.add_child(folium.Element(slider_html))
 
         m.save(filename)
-
-        print("Saved to", filename)
+        webbrowser.open("file://" + os.path.realpath(filename))
+        print(f"Saved to {filename}")
