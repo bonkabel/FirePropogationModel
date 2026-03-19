@@ -1,9 +1,11 @@
+import hashlib
 import math
-import time
 import os
+import re
 import requests
 import numpy as np
 import rasterio
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from rasterio.merge import merge
 from rasterio.windows import from_bounds
 from scipy.ndimage import zoom
@@ -45,9 +47,36 @@ class TerrainDataSetup:
         self.northLat = southLat + gridSize * self.latStep
         self.eastLon = westLon + gridSize * self.lonStep
 
+    def _CacheKey(self):
+        """Generates a unique key based on grid parameters"""
+        params = f"{self.southLat}_{self.westLon}_{self.gridSize}_{self.cellResolution}"
+        return hashlib.md5(params.encode()).hexdigest()[:12]
+
+    def _SaveArrayCache(self, data, name):
+        """
+        Saves a numpy array to disk
+
+        :param data: The numpy array to save
+        :param name: The name of the array
+        """
+        path = os.path.join(self.tileDirectory, f"{name}_{self._CacheKey()}.npy")
+        np.save(path, data)
+
+    def _LoadArrayCache(self, name):
+        """
+        Loads a numpy array from disk if it exists
+
+        :param name: The name of the array
+        :return: The numpy array, or None if it doesn't exist
+        """
+        path = os.path.join(self.tileDirectory, f"{name}_{self._CacheKey()}.npy")
+        if os.path.exists(path):
+            return np.load(path)
+        return None
+
     def _GetTileNames(self, tileDegrees=1):
         """
-        Determines all tile named needed to cover the bounding box
+        Determines all tile names needed to cover the bounding box
 
         :param tileDegrees: Size of each tile in degrees. (1 for Copernicus elevation, 3 for ESA WorldCover)
         :return: Set of tile names as strings
@@ -76,7 +105,6 @@ class TerrainDataSetup:
         :param filenameTemplate: Filename template with {tile} placeholder
         :return: Local file path to the downloaded tile
         """
-
         filename = filenameTemplate.format(tile=tileName)
         filepath = os.path.join(self.tileDirectory, filename)
 
@@ -84,7 +112,6 @@ class TerrainDataSetup:
             return filepath
 
         url = f"{baseUrl}/{filename}"
-
 
         print(f"Downloading worldcover tile: {filename}")
         response = requests.get(url)
@@ -102,14 +129,12 @@ class TerrainDataSetup:
         :param tileName: Tile string identifier
         :return: Local file path to the downloaded tile
         """
-
-        import re
         match = re.match(r'([NS]\d+)([EW]\d+)', tileName)
         if not match:
             raise ValueError(f"Cannot parse tile name: {tileName}")
 
-        lat_part = match.group(1)  # e.g. "N44"
-        lon_part = match.group(2)  # e.g. "W080"
+        lat_part = match.group(1)
+        lon_part = match.group(2)
 
         folder = f"Copernicus_DSM_COG_10_{lat_part}_00_{lon_part}_00_DEM"
         filename = f"{folder}.tif"
@@ -138,42 +163,32 @@ class TerrainDataSetup:
         :return: 2D numpy array of elevation values in meters, shape (gridSize, gridSize)
         """
         tileNames = self._GetTileNames(1)
-        datasets = []
+        paths = []
 
-        for tile in tileNames:
-            try:
-                path = self._DownloadCopernicusTile(tile)
-                datasets.append(rasterio.open(path))
-            except requests.HTTPError:
-                print(f"Elevation tile {tile} not found, skipping.")
-                continue
+        with ThreadPoolExecutor() as executor:
+            futures = {executor.submit(self._DownloadCopernicusTile, tile): tile for tile in tileNames}
+            for future in as_completed(futures):
+                try:
+                    paths.append(future.result())
+                except requests.HTTPError:
+                    print(f"Elevation tile {futures[future]} not found, skipping.")
 
-        if not datasets:
-            raise RuntimeError("No tiles were successfully downloaded")
+        if not paths:
+            raise RuntimeError("No elevation tiles were successfully downloaded")
 
-        mosaic, transform = merge(datasets)
+        datasets = [rasterio.open(p) for p in paths]
+        mosaic, transform = merge(datasets, bounds=(self.westLon, self.southLat, self.eastLon, self.northLat))
 
         for ds in datasets:
             ds.close()
 
-        bounds = (self.westLon, self.southLat, self.eastLon, self.northLat)
-        window = from_bounds(*bounds, transform=transform)
-        window = window.round_offsets().round_lengths()
-
-        cropped = mosaic[0, int(window.row_off):int(window.row_off + window.height), int(window.col_off):int(window.col_off + window.width)]
-
-        # Replace values with no data with NaN
-        cropped = cropped.astype(np.float32)
+        cropped = mosaic[0].astype(np.float32)
         cropped[cropped < -1000] = np.nan
 
-        # Resample
         scaleY = self.gridSize / cropped.shape[0]
         scaleX = self.gridSize / cropped.shape[1]
 
-        resampled = zoom(cropped, (scaleY, scaleX), order=1)
-
-        return resampled
-
+        return zoom(cropped, (scaleY, scaleX), order=1)
 
     def _FetchLandCover(self):
         """
@@ -182,67 +197,60 @@ class TerrainDataSetup:
 
         :return: Tuple of (water, trees), each a boolean numpy array of shape (gridSize, gridSize). True indicates the presence of that cover type
         """
-
         tileNames = self._GetTileNames(3)
-        datasets = []
+        paths = []
 
-        for tile in tileNames:
-            try:
-                path = self._DownloadTile(
+        with ThreadPoolExecutor() as executor:
+            futures = {
+                executor.submit(
+                    self._DownloadTile,
                     tile,
                     "https://esa-worldcover.s3.amazonaws.com/v200/2021/map",
                     "ESA_WorldCover_10m_2021_v200_{tile}_Map.tif"
-                )
-                datasets.append(rasterio.open(path))
-            except requests.HTTPError:
-                print(f"LandCover tile {tile} not found, skipping.")
-                continue
+                ): tile for tile in tileNames
+            }
+            for future in as_completed(futures):
+                try:
+                    paths.append(future.result())
+                except requests.HTTPError:
+                    print(f"LandCover tile {futures[future]} not found, skipping.")
 
-        if not datasets:
-            raise RuntimeError("No tiles were successfully downloaded")
+        if not paths:
+            raise RuntimeError("No landcover tiles were successfully downloaded")
 
-        mosaic, transform = merge(datasets)
+        datasets = [rasterio.open(p) for p in paths]
+        mosaic, transform = merge(datasets, bounds=(self.westLon, self.southLat, self.eastLon, self.northLat))
 
         for ds in datasets:
             ds.close()
 
-        bounds = (self.westLon, self.southLat, self.eastLon, self.northLat)
-        window = from_bounds(*bounds, transform=transform)
-        window = window.round_offsets().round_lengths()
-
-        cropped = mosaic[0, int(window.row_off):int(window.row_off + window.height), int(window.col_off):int(window.col_off + window.width)]
+        cropped = mosaic[0]
 
         scaleY = self.gridSize / cropped.shape[0]
         scaleX = self.gridSize / cropped.shape[1]
 
-        resampled = zoom(cropped, (scaleY, scaleX), order =0)
+        resampled = zoom(cropped, (scaleY, scaleX), order=0)
 
         WATER_CLASS = 80
         TREE_CLASS = 10
 
-        waterMask = resampled == WATER_CLASS
-        treeMask = resampled == TREE_CLASS
-
-        return waterMask, treeMask
+        return resampled == WATER_CLASS, resampled == TREE_CLASS
 
     def _ComputeSlope(self, elevation):
         """
         Computes slope from elevation data
 
-        :param elevation: The elevation data to computer slope with
+        :param elevation: The elevation data to compute slope with
         :return: The magnitude of the slope, and the direction of the slope. In degrees.
         """
-
         cellSizeMeters = self.cellResolution * 1000
 
         dzdx = np.gradient(elevation, axis=1) / cellSizeMeters
         dzdy = np.gradient(elevation, axis=0) / cellSizeMeters
 
-        # slope magnitude
         magnitudeRadians = np.arctan(np.sqrt(dzdx**2 + dzdy**2))
         magnitudeDegrees = np.degrees(magnitudeRadians)
 
-        # slope direction
         directionRadians = np.arctan2(dzdx, -dzdy)
         directionDegrees = np.degrees(directionRadians)
 
@@ -250,19 +258,41 @@ class TerrainDataSetup:
 
     def CreateTerrainLayers(self):
         """
-        Fetches and computes all terrain layers for the simulation grid
+        Fetches and computes all terrain layers for the simulation grid.
+        Loads from array cache if available, otherwise fetches from source and saves to cache.
 
         :return: Dictionary containing:
             - elevation: 2D float array of elevation in meters
-            - slop_magnitude: 2D float array of slope steepness in degrees
+            - slope_magnitude: 2D float array of slope steepness in degrees
             - slope_direction: 2D float array of slope direction in degrees, clockwise from north
             - water: 2D boolean array, True where water is present
             - trees: 2D boolean array, True where tree cover is present
         """
+        elevation = self._LoadArrayCache("elevation")
+        slopeMagnitude = self._LoadArrayCache("slope_magnitude")
+        slopeDirection = self._LoadArrayCache("slope_direction")
+        water = self._LoadArrayCache("water")
+        trees = self._LoadArrayCache("trees")
+
+        if all(v is not None for v in [elevation, slopeMagnitude, slopeDirection, water, trees]):
+            print("Loaded terrain from array cache")
+            return {
+                "elevation": elevation,
+                "slope_magnitude": slopeMagnitude,
+                "slope_direction": slopeDirection,
+                "water": water,
+                "trees": trees
+            }
 
         elevation = self._FetchElevation()
         slopeMagnitude, slopeDirection = self._ComputeSlope(elevation)
         water, trees = self._FetchLandCover()
+
+        self._SaveArrayCache(elevation, "elevation")
+        self._SaveArrayCache(slopeMagnitude, "slope_magnitude")
+        self._SaveArrayCache(slopeDirection, "slope_direction")
+        self._SaveArrayCache(water, "water")
+        self._SaveArrayCache(trees, "trees")
 
         return {
             "elevation": elevation,
