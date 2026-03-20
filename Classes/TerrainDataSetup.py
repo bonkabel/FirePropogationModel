@@ -33,6 +33,10 @@ class TerrainDataSetup:
         :param tileDirectory: Local directory to cache downloaded tiles, default is "tiles"
         """
 
+
+
+
+
         self.southLat = southLat
         self.westLon = westLon
         self.gridSize = gridSize
@@ -46,6 +50,13 @@ class TerrainDataSetup:
 
         self.northLat = southLat + gridSize * self.latStep
         self.eastLon = westLon + gridSize * self.lonStep
+
+        self.margin = 3
+
+        self._fetchSouthLat = southLat - self.margin * self.latStep
+        self._fetchWestLon = westLon - self.margin * self.lonStep
+        self._fetchNorthLat = self.northLat + self.margin * self.latStep
+        self._fetchEastLon = self.eastLon + self.margin * self.lonStep
 
     def _CacheKey(self):
         """Generates a unique key based on grid parameters"""
@@ -177,16 +188,19 @@ class TerrainDataSetup:
             raise RuntimeError("No elevation tiles were successfully downloaded")
 
         datasets = [rasterio.open(p) for p in paths]
-        mosaic, transform = merge(datasets, bounds=(self.westLon, self.southLat, self.eastLon, self.northLat))
-
-        for ds in datasets:
-            ds.close()
+        try:
+            mosaic, transform = merge(datasets, bounds=(self._fetchWestLon, self._fetchSouthLat, self._fetchEastLon,
+                                                        self._fetchNorthLat))
+        finally:
+            for ds in datasets:
+                ds.close()
 
         cropped = mosaic[0].astype(np.float32)
         cropped[cropped < -1000] = np.nan
 
-        scaleY = self.gridSize / cropped.shape[0]
-        scaleX = self.gridSize / cropped.shape[1]
+        fetchSize = self.gridSize + self.margin * 2
+        scaleY = fetchSize / cropped.shape[0]
+        scaleX = fetchSize / cropped.shape[1]
 
         return zoom(cropped, (scaleY, scaleX), order=1)
 
@@ -219,15 +233,18 @@ class TerrainDataSetup:
             raise RuntimeError("No landcover tiles were successfully downloaded")
 
         datasets = [rasterio.open(p) for p in paths]
-        mosaic, transform = merge(datasets, bounds=(self.westLon, self.southLat, self.eastLon, self.northLat))
-
-        for ds in datasets:
-            ds.close()
+        try:
+            mosaic, transform = merge(datasets, bounds=(self._fetchWestLon, self._fetchSouthLat, self._fetchEastLon,
+                                                        self._fetchNorthLat))
+        finally:
+            for ds in datasets:
+                ds.close()
 
         cropped = mosaic[0]
 
-        scaleY = self.gridSize / cropped.shape[0]
-        scaleX = self.gridSize / cropped.shape[1]
+        fetchSize = self.gridSize + self.margin * 2
+        scaleY = fetchSize / cropped.shape[0]
+        scaleX = fetchSize / cropped.shape[1]
 
         resampled = zoom(cropped, (scaleY, scaleX), order=0)
 
@@ -244,11 +261,15 @@ class TerrainDataSetup:
         :return: The magnitude of the slope, and the direction of the slope. In degrees.
         """
         cellSizeMeters = self.cellResolution * 1000
+        m = self.margin
 
         dzdx = np.gradient(elevation, axis=1) / cellSizeMeters
         dzdy = np.gradient(elevation, axis=0) / cellSizeMeters
 
-        magnitudeRadians = np.arctan(np.sqrt(dzdx**2 + dzdy**2))
+        dzdx = dzdx[m:-m, m:-m]
+        dzdy = dzdy[m:-m, m:-m]
+
+        magnitudeRadians = np.arctan(np.sqrt(dzdx ** 2 + dzdy ** 2))
         magnitudeDegrees = np.degrees(magnitudeRadians)
 
         directionRadians = np.arctan2(dzdx, -dzdy)
@@ -284,9 +305,13 @@ class TerrainDataSetup:
                 "trees": trees
             }
 
+        m = self.margin
         elevation = self._FetchElevation()
         slopeMagnitude, slopeDirection = self._ComputeSlope(elevation)
+        elevation = elevation[m:-m, m:-m]
         water, trees = self._FetchLandCover()
+        water = water[m:-m, m:-m]
+        trees = trees[m:-m, m:-m]
 
         self._SaveArrayCache(elevation, "elevation")
         self._SaveArrayCache(slopeMagnitude, "slope_magnitude")
