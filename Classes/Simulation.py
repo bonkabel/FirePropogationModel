@@ -5,10 +5,6 @@ from Classes.Grid import Grid
 import numpy as np
 
 class Simulation:
-    """
-    Probabilistic fire spread.
-    Deterministic extinction.
-    """
 
     def __init__(self, grid, dt, totalSteps=25):
         """
@@ -133,7 +129,7 @@ class Simulation:
 
         # Wind alignment
         spreadDx, spreadDy = nx - x, ny - y
-        windRadians = math.radians(self.grid.windDirection[x][y])
+        windRadians = math.radians(self.grid.windDirection[x][y] + 180)
         windDx = math.sin(windRadians)
         windDy = math.cos(windRadians)
         windDot = (spreadDx * windDx + spreadDy * windDy) / distance

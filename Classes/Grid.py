@@ -12,7 +12,7 @@ class Grid:
     BURNED_OUT = 2
 
 
-    def __init__(self, gridSize, cellSize, weatherData, terrainData, rosData):
+    def __init__(self, gridSize, cellSize, weatherData, terrainData, rosData, wsvData, razData, ffData, isiData):
 
         # Weather
         self.temperature = np.array(weatherData['temperature'], dtype=float)
@@ -33,6 +33,10 @@ class Grid:
 
         # Initial spread values
         self.ros = rosData
+        self.wsv = wsvData
+        self.raz = razData
+        self.ff = ffData
+        self.isi = isiData
 
         # State information
         self.state = np.zeros((gridSize, gridSize), dtype=int)

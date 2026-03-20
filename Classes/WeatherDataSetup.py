@@ -9,6 +9,7 @@ import requests_cache
 import sqlite3
 from retry_requests import retry
 from scipy.ndimage import zoom
+import requests
 
 class WeatherDataSetup:
     """
@@ -101,8 +102,7 @@ class WeatherDataSetup:
         :return: Configured openmeteo_requests.Client instance
         """
         if self.cache:
-            cacheSession = requests_cache.CachedSession('.cache', expire_after=3600)
-            retrySession = retry(cacheSession, retries=8, backoff_factor=1)
+            retrySession = retry(requests.Session(), retries=8, backoff_factor=1)
             return openmeteo_requests.Client(session=retrySession)
         else:
             return openmeteo_requests.Client()
@@ -123,11 +123,10 @@ class WeatherDataSetup:
         """
         Serialises fineData and stores it in the SQLite database
         :param fineData: The data to serialise
-        :return:
         """
         serialisable = {
-            key: [arr.tolist() for arr in daily_arrays]
-            for key, daily_arrays in fineData.items()
+            key: arr.tolist()
+            for key, arr in fineData.items()
         }
 
         with sqlite3.connect(self.dbPath) as conn:
@@ -146,8 +145,8 @@ class WeatherDataSetup:
 
         raw = json.loads(row[0])
         return {
-            key: [np.array(arr) for arr in daily_list]
-            for key, daily_list in raw.items()
+            key: np.array(arr)
+            for key, arr in raw.items()
         }
 
     def _UpscaleData(self, coarseData):
@@ -176,16 +175,14 @@ class WeatherDataSetup:
         """
         return {key: np.mean(arrays, axis=0) for key, arrays in fineData.items()}
 
-
-
-
-    def CreateWeatherLayers(self):
+    def CreateWeatherLayers(self, mode="average"):
         """
         Fetches weather data for all coarse grid points in batches.
         Stores the results in 2D arrays.
         Interpolates them to a finer resolution
 
-        :return: Dictionary containing fine resolution 2D NumPy arrays for reach weather variable
+        :param mode: "average" for 7-day historical average (ERA5), "current" for today's forecast data
+        :return: Dictionary containing fine resolution 2D NumPy arrays for each weather variable
         """
         if self.useCachedData:
             cached = self._LoadFromCache()
@@ -194,12 +191,33 @@ class WeatherDataSetup:
             print("No cached data, getting from API")
 
         today = date.today()
-        startDate = (today - timedelta(days=6)).strftime("%Y-%m-%d")
-        endDate = today.strftime("%Y-%m-%d")
-        numDays = 7
+        variables = ["temperature", "humidity", "precipitation", "wind_speed", "wind_direction"]
         batchSize = 100
 
-        variables = ["temperature", "humidity", "precipitation", "wind_speed", "wind_direction"]
+        if mode == "current":
+            apiUrl = "https://api.open-meteo.com/v1/forecast"
+            startDate = today.strftime("%Y-%m-%d")
+            endDate = today.strftime("%Y-%m-%d")
+            numDays = 1
+            hourlyVars = [
+                "temperature_2m",
+                "relative_humidity_2m",
+                "precipitation",
+                "wind_speed_10m",
+                "wind_direction_10m"
+            ]
+        else:
+            apiUrl = "https://archive-api.open-meteo.com/v1/era5"
+            startDate = (today - timedelta(days=6)).strftime("%Y-%m-%d")
+            endDate = (today - timedelta(days=1)).strftime("%Y-%m-%d")  # ERA5 lags ~5-7 days
+            numDays = 6
+            hourlyVars = [
+                "temperature_2m",
+                "relative_humidity_2m",
+                "precipitation",
+                "wind_speed_10m",
+                "wind_direction_10m"
+            ]
 
         coarseData = {
             var: [np.zeros((self.coarseSize, self.coarseSize)) for _ in range(numDays)]
@@ -207,8 +225,7 @@ class WeatherDataSetup:
         }
 
         for batchStart in range(0, len(self.coarsePoints), batchSize):
-            batch = self.coarsePoints[batchStart:batchStart+batchSize]
-
+            batch = self.coarsePoints[batchStart:batchStart + batchSize]
 
             lats = [i[0] for i in batch]
             lons = [i[1] for i in batch]
@@ -218,16 +235,10 @@ class WeatherDataSetup:
                 "longitude": lons,
                 "start_date": startDate,
                 "end_date": endDate,
-                "hourly": [
-                    "temperature_2m",
-                    "relative_humidity_2m",
-                    "precipitation",
-                    "wind_speed_10m",
-                    "wind_direction_10m"
-                ]
+                "hourly": hourlyVars
             }
 
-            responses = self.client.weather_api("https://archive-api.open-meteo.com/v1/era5", params=params)
+            responses = self.client.weather_api(apiUrl, params=params)
 
             for index, response in enumerate(responses):
                 i = batchStart + index
@@ -252,10 +263,9 @@ class WeatherDataSetup:
                     coarseData["wind_direction"][d][row][col] = allWindDirection[ni]
 
         fineData = self._UpscaleData(coarseData)
-
         fineData = self._AverageData(fineData)
 
         if self.cacheData:
             self._SaveToCache(fineData)
-        
+
         return fineData

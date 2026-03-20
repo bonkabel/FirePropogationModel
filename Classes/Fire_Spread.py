@@ -116,7 +116,7 @@ class Fire_Spread():
                 # ROS on slope with no wind (eq 40)
                 RSF = RSZ * SF
 
-                # ISF — back-solve ISI from RSF, fuel-type dependent
+                # ISF
                 if self.treesGrid[i][j]:
                     # Equation 41
                     ISF = math.log(max(1.0 - (RSF / params['a']) ** (1.0 / params['c']), 1e-9)) / -params['b']
@@ -127,6 +127,8 @@ class Fire_Spread():
 
                 # Equivalent wind speed for slope (eq 44)
                 WSE = min(math.log(max(ISF / (0.208 * max(ff[i][j], 1e-9)), 1e-9)) / 0.05039, 40.0)
+
+
 
                 # Vector combination of wind and slope
                 wind_rad = math.radians((self.windDirectionGrid[i][j] + 180) % 360)
