@@ -43,14 +43,14 @@ def index():
         if location:
             lat, lon = location.latitude, location.longitude
 
-            # --- Weather & Terrain setup ---
+            # Weather & Terrain setup
             weatherSetup = WeatherDataSetup(lat, lon, 100, 2, 10, True, True, True)
             weatherLayers = weatherSetup.CreateWeatherLayers()
 
             terrainSetup = TerrainDataSetup(lat, lon, gridSize=100, cellResolution=2)
             terrainLayers = terrainSetup.CreateTerrainLayers()
 
-            # --- Fire Spread & Simulation ---
+            # Fire Spread & Simulation
             fireSpread = Fire_Spread(weatherLayers['humidity'], weatherLayers['wind_speed'], weatherLayers['precipitation'], weatherLayers['temperature'], terrainLayers['trees'])
             ros, isi = fireSpread.roscalculation()
 
@@ -59,7 +59,7 @@ def index():
             sim.IgniteRandom(5)
             sim.Run()
 
-            # --- Visualization ---
+            # Visualization
             viz = Visualization(sim, weatherLayers, terrainLayers, southLat=terrainSetup.southLat, westLon=terrainSetup.westLon, northLat=terrainSetup.northLat, eastLon=terrainSetup.eastLon)
            
             html_content = viz.saveTimeline()
@@ -70,7 +70,7 @@ def index():
 
 
 if __name__ == "__main__":
-    # --- Automatically open browser ---
+    # Automatically open browser
     Timer(1, lambda: webbrowser.open("http://127.0.0.1:5000")).start()
     app.run(debug=False)
 
