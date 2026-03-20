@@ -1,69 +1,76 @@
-import numpy as np
-
-from Classes.Fire_Spread import Fire_Spread
+from flask import Flask, render_template_string, request
+from geopy.geocoders import Nominatim
 from Classes.Grid import Grid
+from Classes.Fire_Spread import Fire_Spread
 from Classes.Simulation import Simulation
-# from Classes.Map_grid import FireGrid
+from Classes.WeatherDataSetup import WeatherDataSetup
 from Classes.TerrainDataSetup import TerrainDataSetup
 from Classes.Visualization import Visualization
-from Classes.WeatherDataSetup import WeatherDataSetup
+import webbrowser
+from threading import Timer
 
-# Just for testing purposes
+app = Flask(__name__)
 
-if __name__ == '__main__':
+HTML_TEMPLATE = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fire Simulation</title>
+    <meta charset="utf-8">
+</head>
+<body>
+    <h2>Fire Propagation Simulation</h2>
+    <form method="post">
+        Location: <input type="text" name="location" value="{{ location }}">
+        <input type="submit" value="Run Simulation">
+    </form>
+    <div style="height:600px;">
+        {{ html_content|safe }}
+    </div>
+</body>
+</html>
+"""
 
-    # Testing data
-    southLat = -9.248872 # latitude
-    westLon = -45.917065 # longitude
-    gridSize = 100 #Dimensions
-    cellResolution = 2 #km
-    coarseResolution = 10 #km
-    cache = True
+@app.route("/", methods=["GET", "POST"])
+def index():
+    location_str = "San Francisco, CA"
+    html_content = ""
+    if request.method == "POST":
+        location_str = request.form.get("location")
+        geolocator = Nominatim(user_agent="fire_sim")
+        location = geolocator.geocode(location_str)
 
-    # WeatherDataSetup
-    weatherSetup = WeatherDataSetup(42.817816, -80.633052, 100, 2, 10, True, True, True)
-    weatherLayers = weatherSetup.CreateWeatherLayers()
-    print("Weather grid data done")
+        if location:
+            lat, lon = location.latitude, location.longitude
 
-    # TerrainDataSetup
-    terrainSetup = TerrainDataSetup(southLat, westLon, gridSize, cellResolution)
-    terrainLayers = terrainSetup.CreateTerrainLayers()
-    print("Terrain grid data done")
+            # --- Weather & Terrain setup ---
+            weatherSetup = WeatherDataSetup(lat, lon, 100, 2, 10, True, True, True)
+            weatherLayers = weatherSetup.CreateWeatherLayers()
 
-    # ROS calculation
-    fireSpread = Fire_Spread(weatherLayers['humidity'], weatherLayers['wind_speed'], weatherLayers['precipitation'], weatherLayers['temperature'], terrainLayers['trees'])
-    rateOfSpread = fireSpread.roscalculation()
+            terrainSetup = TerrainDataSetup(lat, lon, gridSize=100, cellResolution=2)
+            terrainLayers = terrainSetup.CreateTerrainLayers()
 
-    # Grid
-    grid = Grid(gridSize, cellResolution, weatherLayers, terrainLayers, rateOfSpread)
-    print("Grid setup done")
+            # --- Fire Spread & Simulation ---
+            fireSpread = Fire_Spread(weatherLayers['humidity'], weatherLayers['wind_speed'], weatherLayers['precipitation'], weatherLayers['temperature'], terrainLayers['trees'])
+            ros, isi = fireSpread.roscalculation()
 
-    # Simulation
-    simulation = Simulation(grid, 10, 200)
-    simulation.IgniteRandom(10)
-    simulation.Run()
-    print("Simulation done")
+            grid = Grid(gridSize=100, cellSize=2, weatherData=weatherLayers, terrainData=terrainLayers, rosData=ros)
+            sim = Simulation(grid, dt=5, totalSteps=100)
+            sim.IgniteRandom(5)
+            sim.Run()
 
-    # Visualization
-    viz = Visualization(
-        simulation,
-        southLat=terrainSetup.southLat,
-        westLon=terrainSetup.westLon,
-        northLat=terrainSetup.northLat,
-        eastLon=terrainSetup.eastLon
-    )
-    viz.saveTimeline()
-    print("Visualization done")
+            # --- Visualization ---
+            viz = Visualization(sim, weatherLayers, terrainLayers, southLat=terrainSetup.southLat, westLon=terrainSetup.westLon, northLat=terrainSetup.northLat, eastLon=terrainSetup.eastLon)
+           
+            html_content = viz.saveTimeline()
+        else:
+            html_content = "<p>Location not found</p>"
+
+    return render_template_string(HTML_TEMPLATE, location=location_str, html_content=html_content)
 
 
-
-
-
-
-
-
-
-
-
-
+if __name__ == "__main__":
+    # --- Automatically open browser ---
+    Timer(1, lambda: webbrowser.open("http://127.0.0.1:5000")).start()
+    app.run(debug=False)
 

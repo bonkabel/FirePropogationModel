@@ -151,16 +151,13 @@ class TerrainDataSetup:
         if not datasets:
             raise RuntimeError("No tiles were successfully downloaded")
 
-        mosaic, transform = merge(datasets)
+        bounds = (self.westLon, self.southLat, self.eastLon, self.northLat)
+        mosaic, transform = merge(datasets, bounds=bounds)
 
         for ds in datasets:
             ds.close()
 
-        bounds = (self.westLon, self.southLat, self.eastLon, self.northLat)
-        window = from_bounds(*bounds, transform=transform)
-        window = window.round_offsets().round_lengths()
-
-        cropped = mosaic[0, int(window.row_off):int(window.row_off + window.height), int(window.col_off):int(window.col_off + window.width)]
+        cropped = mosaic[0]
 
         # Replace values with no data with NaN
         cropped = cropped.astype(np.float32)
@@ -201,16 +198,13 @@ class TerrainDataSetup:
         if not datasets:
             raise RuntimeError("No tiles were successfully downloaded")
 
-        mosaic, transform = merge(datasets)
+        bounds = (self.westLon, self.southLat, self.eastLon, self.northLat)
+        mosaic, transform = merge(datasets, bounds=bounds)
 
         for ds in datasets:
             ds.close()
 
-        bounds = (self.westLon, self.southLat, self.eastLon, self.northLat)
-        window = from_bounds(*bounds, transform=transform)
-        window = window.round_offsets().round_lengths()
-
-        cropped = mosaic[0, int(window.row_off):int(window.row_off + window.height), int(window.col_off):int(window.col_off + window.width)]
+        cropped = mosaic[0]
 
         scaleY = self.gridSize / cropped.shape[0]
         scaleX = self.gridSize / cropped.shape[1]

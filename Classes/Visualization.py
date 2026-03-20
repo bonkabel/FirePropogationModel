@@ -27,6 +27,20 @@ class Visualization:
         self.fire_spread = Fire_Spread(self.humidity, self.wind_speed, self.precipitation, self.temperature, self.trees)
         self.ros, self.isi = self.fire_spread.roscalculation()
 
+    def _arrayToBase64(self, arr: np.ndarray) -> str:
+        """
+        Converts a numpy RGBA array to a base64 string for embedding in HTML/Folium.
+        """
+        # Ensure array is uint8
+        if arr.dtype != np.uint8:
+            arr = (arr * 255).astype(np.uint8)
+
+        img = Image.fromarray(arr)
+        buffered = io.BytesIO()
+        img.save(buffered, format="PNG")
+        img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
+        return img_str
+
     def _stateToImage(self, state):
 
         rgba = np.zeros((*state.shape, 4), dtype=np.uint8)
@@ -278,6 +292,7 @@ class Visualization:
 
         m.get_root().html.add_child(folium.Element(slider_html))
 
-        m.save(filename)
-        webbrowser.open("file://" + os.path.realpath(filename))
-        print(f"Saved to {filename}")
+        # m.save(filename)
+        # webbrowser.open("file://" + os.path.realpath(filename))
+        # print(f"Saved to {filename}")
+        return m.get_root().render()
