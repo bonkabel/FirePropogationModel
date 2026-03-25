@@ -37,8 +37,16 @@ if st.button("Run Simulation"):
 
                 # Terrain setup
                 st.write("Setting up terrain...")
-                terrainSetup = TerrainDataSetup(lat, lon, gridSize, cellResolution)
-                terrainLayers = terrainSetup.CreateTerrainLayers()
+                try:
+                    terrainSetup = TerrainDataSetup(lat, lon, gridSize, cellResolution)
+                    terrainLayers = terrainSetup.CreateTerrainLayers()
+                    st.write("Terrain done!")
+                except Exception as e:
+                    import traceback
+
+                    st.error(f"Terrain failed: {str(e)}")
+                    st.code(traceback.format_exc())
+                    st.stop()
                 st.write("Terrain done")
 
                 # ROS calculation
