@@ -34,16 +34,18 @@ def geocode(location_str):
         return None, None
 
 
+is_cloud = st.checkbox("Use reduced grid (faster)", value=True)
+
+gridSize = 50 if is_cloud else 100
+
 if st.button("Run Simulation"):
     with st.spinner("Running simulation, please wait..."):
         try:
-            st.write("Geocoding location...")
             lat, lon = geocode(location_str)
 
             if not lat:
                 st.error("Location not found.")
             else:
-                gridSize = 100
                 cellResolution = 2
 
                 # Weather setup
