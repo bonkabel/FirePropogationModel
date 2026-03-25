@@ -16,7 +16,9 @@ location_str = st.text_input("Location", value="Phoenix Arizona, US")
 
 if st.button("Run Simulation"):
     with st.spinner("Running simulation, please wait..."):
+        st.write("Starting simulation...")
         try:
+            st.write("Geocoding location...")
             geolocator = Nominatim(user_agent="fire_sim")
             location = geolocator.geocode(location_str)
 
@@ -29,10 +31,12 @@ if st.button("Run Simulation"):
                 cellResolution = 2
 
                 # Weather setup
+                st.write("Setting up weather...")
                 weatherSetup = WeatherDataSetup(lat, lon, gridSize, cellResolution, 10, False, True, True)
                 weatherLayers = weatherSetup.CreateWeatherLayers("current")
 
                 # Terrain setup
+                st.write("Setting up terrain...")
                 terrainSetup = TerrainDataSetup(lat, lon, gridSize, cellResolution)
                 terrainLayers = terrainSetup.CreateTerrainLayers()
 
@@ -53,6 +57,7 @@ if st.button("Run Simulation"):
                 grid = Grid(gridSize, cellResolution, weatherLayers, terrainLayers, ros, wsv, raz, ff, isi)
 
                 # MTT Simulation
+                st.write("Calculating fire spread...")
                 simulation = MTTSimulation(grid, dt=3600)
                 simulation.IgniteRandom(10)
                 simulation.Solve()
