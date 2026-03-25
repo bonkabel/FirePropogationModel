@@ -27,7 +27,7 @@ if st.button("Run Simulation"):
             else:
                 lat = location.latitude
                 lon = location.longitude
-                gridSize = 10
+                gridSize = 50
                 cellResolution = 2
 
                 # Weather setup
