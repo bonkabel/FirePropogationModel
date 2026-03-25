@@ -19,8 +19,6 @@ def geocode(location_str):
     try:
         api_key = st.secrets.get("OPENCAGE_API_KEY")
 
-        st.write(api_key)
-
         response = requests.get(
             "https://api.opencagedata.com/geocode/v1/json",
             params={"q": location_str, "key": api_key, "limit": 1},
@@ -45,7 +43,7 @@ if st.button("Run Simulation"):
             if not lat:
                 st.error("Location not found.")
             else:
-                gridSize = 50
+                gridSize = 100
                 cellResolution = 2
 
                 # Weather setup
