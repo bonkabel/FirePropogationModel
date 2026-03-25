@@ -19,7 +19,7 @@ if st.button("Run Simulation"):
         st.write("Starting simulation...")
         try:
             st.write("Geocoding location...")
-            geolocator = Nominatim(user_agent="fire_sim")
+            geolocator = Nominatim(user_agent="fire_sim", timeout=10)
             location = geolocator.geocode(location_str)
 
             if not location:
