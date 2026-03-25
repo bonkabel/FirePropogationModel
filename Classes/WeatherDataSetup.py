@@ -158,11 +158,25 @@ class WeatherDataSetup:
         :return: Dictionary mapping weather variable names to 2d NumPy arrays at fine resolution
         """
         scaleFactor = self.gridSize / self.coarseSize
-
         fineData = {}
 
         for key, daily_arrays in coarseData.items():
-            fineData[key] = [zoom(arr, scaleFactor, order=1) for arr in daily_arrays]
+            upscaled = []
+            for arr in daily_arrays:
+                z = zoom(arr, scaleFactor, order=1)
+
+                # FORCE exact shape
+                z = z[:self.gridSize, :self.gridSize]
+
+                # If zoom undershoots (rare), pad
+                if z.shape[0] < self.gridSize or z.shape[1] < self.gridSize:
+                    padded = np.zeros((self.gridSize, self.gridSize))
+                    padded[:z.shape[0], :z.shape[1]] = z
+                    z = padded
+
+                upscaled.append(z)
+
+            fineData[key] = upscaled
 
         return fineData
 

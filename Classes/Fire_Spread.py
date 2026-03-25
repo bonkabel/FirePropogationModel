@@ -30,14 +30,24 @@ class Fire_Spread():
             wsv: 2D array — net effective wind speed (km/h)
             raz: 2D array — net effective wind direction (degrees)
         """
+
+        print("humidity:", self.humidityGrid.shape)
+        print("wind speed:", self.windSpeedGrid.shape)
+        print("wind direction:", self.windDirectionGrid.shape)
+        print("trees:", self.treesGrid.shape)
+        print("slope_mag:", self.slopeMagnitudeGrid.shape)
+        print("slopeDirectionGrid:", self.slopeDirectionGrid.shape)
+
         ros = np.zeros_like(self.humidityGrid, dtype=float)
         wsv = np.zeros_like(self.humidityGrid, dtype=float)
         raz = np.zeros_like(self.humidityGrid, dtype=float)
         ff = np.zeros_like(self.humidityGrid, dtype=float)
         isi = np.zeros_like(self.humidityGrid, dtype=float)
 
-        for i in range(len(self.humidityGrid)):
-            for j in range(len(self.humidityGrid[i])):
+        rows, cols = self.humidityGrid.shape
+
+        for i in range(rows):
+            for j in range(cols):
                 params = self.constants["C-2"] if self.treesGrid[i][j] else self.constants["O-1"]
 
                 m0 = (147.2 * (101.0 - self.ffmc0[i][j])) / (59.5 + self.ffmc0[i][j])
@@ -130,7 +140,6 @@ class Fire_Spread():
                     WSE = 0.0
                 else:
                     RSF_capped = min(RSF, params['a'] * 0.95)
-                    print(f"RSF={RSF:.4f} RSF_capped={RSF_capped:.4f} a={params['a']:.4f}")  # debug
 
                     if self.treesGrid[i][j]:
                         ISF = math.log(max(1.0 - (RSF_capped / params['a']) ** (1.0 / params['c']), 1e-9)) / -params[

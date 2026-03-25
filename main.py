@@ -16,17 +16,24 @@ st.title("Fire Simulation")
 location_str = st.text_input("Location", value="Phoenix Arizona, US")
 
 def geocode(location_str):
-    st.write("Geocoding location...")
     try:
-        response = requests.get("https://photon.komoot.io/api/", params={"q": location_str, "limit": 1}, timeout=10)
-        st.write(f"Status code: {response.status_code}")
-        st.write(f"Response: {response.text[:200]}")
+        response = requests.get(
+            "https://api.opencagedata.com/geocode/v1/json",
+            params={"q": location_str, "key": st.secrets["OPENCAGE_API_KEY"], "limit": 1},
+            timeout=10
+        )
+        result = response.json()
+        if result.get("results"):
+            r = result["results"][0]["geometry"]
+            return r["lat"], r["lng"]
+        return None, None
     except Exception as e:
-        st.write(f"Request failed: {str(e)}")
+        st.error(f"Geocoding error: {str(e)}")
+        return None, None
+
 
 if st.button("Run Simulation"):
     with st.spinner("Running simulation, please wait..."):
-        st.write("Starting simulation...")
         try:
             st.write("Geocoding location...")
             lat, lon = geocode(location_str)
@@ -38,12 +45,10 @@ if st.button("Run Simulation"):
                 cellResolution = 2
 
                 # Weather setup
-                st.write("Setting up weather...")
-                weatherSetup = WeatherDataSetup(lat, lon, gridSize, cellResolution, 10, False, True, True)
+                weatherSetup = WeatherDataSetup(lat, lon, gridSize, cellResolution, 10, False, True, False)
                 weatherLayers = weatherSetup.CreateWeatherLayers("current")
 
                 # Terrain setup
-                st.write("Setting up terrain...")
                 try:
                     terrainSetup = TerrainDataSetup(lat, lon, gridSize, cellResolution)
                     terrainLayers = terrainSetup.CreateTerrainLayers()
@@ -54,7 +59,6 @@ if st.button("Run Simulation"):
                     st.error(f"Terrain failed: {str(e)}")
                     st.code(traceback.format_exc())
                     st.stop()
-                st.write("Terrain done")
 
                 # ROS calculation
                 fireSpread = Fire_Spread(
@@ -73,7 +77,6 @@ if st.button("Run Simulation"):
                 grid = Grid(gridSize, cellResolution, weatherLayers, terrainLayers, ros, wsv, raz, ff, isi)
 
                 # MTT Simulation
-                st.write("Calculating fire spread...")
                 simulation = MTTSimulation(grid, dt=3600)
                 simulation.IgniteRandom(10)
                 simulation.Solve()
