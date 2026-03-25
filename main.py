@@ -16,20 +16,13 @@ st.title("Fire Simulation")
 location_str = st.text_input("Location", value="Phoenix Arizona, US")
 
 def geocode(location_str):
+    st.write("Geocoding location...")
     try:
-        response = requests.get(
-            "https://photon.komoot.io/api/",
-            params={"q": location_str, "limit": 1},
-            timeout=10
-        )
-        result = response.json()
-        if result.get("features"):
-            coords = result["features"][0]["geometry"]["coordinates"]
-            return coords[1], coords[0]  # lat, lon
-        return None, None
+        response = requests.get("https://photon.komoot.io/api/", params={"q": location_str, "limit": 1}, timeout=10)
+        st.write(f"Status code: {response.status_code}")
+        st.write(f"Response: {response.text[:200]}")
     except Exception as e:
-        st.error(f"Geocoding error: {str(e)}")
-        return None, None
+        st.write(f"Request failed: {str(e)}")
 
 if st.button("Run Simulation"):
     with st.spinner("Running simulation, please wait..."):
