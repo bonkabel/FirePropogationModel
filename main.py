@@ -17,9 +17,13 @@ location_str = st.text_input("Location", value="Phoenix Arizona, US")
 
 def geocode(location_str):
     try:
+        api_key = st.secrets.get("OPENCAGE_API_KEY")
+
+        st.write(api_key)
+
         response = requests.get(
             "https://api.opencagedata.com/geocode/v1/json",
-            params={"q": location_str, "key": st.secrets["OPENCAGE_API_KEY"], "limit": 1},
+            params={"q": location_str, "key": api_key, "limit": 1},
             timeout=10
         )
         result = response.json()
