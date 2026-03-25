@@ -5,7 +5,6 @@ from datetime import date, timedelta
 
 import numpy as np
 import openmeteo_requests
-import requests_cache
 import sqlite3
 from retry_requests import retry
 from scipy.ndimage import zoom
