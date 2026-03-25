@@ -9,7 +9,6 @@ import os
 import webbrowser
 from PIL import Image
 from Classes.Grid import Grid
-from Classes.Fire_Spread import Fire_Spread
 
 
 class Visualization:
@@ -231,11 +230,8 @@ class Visualization:
 
         wind.add_to(m)
 
-    # ------------------------------------------------------------------
-    # Main output
-    # ------------------------------------------------------------------
 
-    def saveTimeline(self, filename="fire_simulation.html", flask=False):
+    def saveTimeline(self, filename="fire_simulation.html", flask=False, streamlit=False):
         """
         Builds and outputs the fire simulation timeline.
 
@@ -375,6 +371,15 @@ class Visualization:
             os.makedirs(static_dir, exist_ok=True)
             m.save(os.path.join(static_dir, 'map.html'))
             return '<iframe src="/static/map.html" style="width:100%; height:100%; border:none;"></iframe>'
+        elif streamlit:                          # ← add this branch
+            import tempfile
+            with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
+                tmp_path = f.name
+            m.save(tmp_path)
+            with open(tmp_path, "r", encoding="utf-8") as f:
+                html_str = f.read()
+            os.unlink(tmp_path)
+            return html_str
         else:
             m.save(filename)
             webbrowser.open("file://" + os.path.realpath(filename))

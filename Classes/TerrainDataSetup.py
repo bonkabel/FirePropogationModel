@@ -7,7 +7,6 @@ import numpy as np
 import rasterio
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from rasterio.merge import merge
-from rasterio.windows import from_bounds
 from scipy.ndimage import zoom
 
 

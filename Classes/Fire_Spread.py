@@ -126,7 +126,24 @@ class Fire_Spread():
                     ISF = math.log(max(1.0 - (RSF / (CF * params['a'])) ** (1.0 / params['c']), 1e-9)) / -params['b']
 
                 # Equivalent wind speed for slope (eq 44)
-                WSE = min(math.log(max(ISF / (0.208 * max(ff[i][j], 1e-9)), 1e-9)) / 0.05039, 40.0)
+                if RSF <= RSZ or self.slopeMagnitudeGrid[i][j] <= 0.0:
+                    WSE = 0.0
+                else:
+                    RSF_capped = min(RSF, params['a'] * 0.95)
+                    print(f"RSF={RSF:.4f} RSF_capped={RSF_capped:.4f} a={params['a']:.4f}")  # debug
+
+                    if self.treesGrid[i][j]:
+                        ISF = math.log(max(1.0 - (RSF_capped / params['a']) ** (1.0 / params['c']), 1e-9)) / -params[
+                            'b']
+                    else:
+                        CF = 0.8
+                        ISF = math.log(max(1.0 - (RSF_capped / (CF * params['a'])) ** (1.0 / params['c']), 1e-9)) / - \
+                        params['b']
+                    WSE = max(0.0, min(
+                        math.log(max(ISF / (0.208 * max(ff[i][j], 1e-9)), 1e-9)) / 0.05039,
+                        40.0
+
+                    ))
 
 
 

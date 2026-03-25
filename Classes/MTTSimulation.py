@@ -69,6 +69,10 @@ class MTTSimulation:
         """
         self._burnoutGrid = self._BurnoutTimeGrid()  # compute once, reuse everywhere
         self.ignitionTime = self._Dijkstra()
+        x, y = self.grid.gridSize // 2, self.grid.gridSize // 2
+        for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
+            ros = self._DirectionalROS(x, y, dx, dy)
+            print(f"dx={dx:+d} dy={dy:+d} ROS={ros:.4f}")
         self.history = self._BuildHistory()
 
     def _Dijkstra(self):
@@ -77,10 +81,7 @@ class MTTSimulation:
         Each edge weight is the travel time in seconds for fire to cross
         from a burning cell to an unburned neighbour.
 
-        Extinction is considered during propagation — a cell can only ignite
-        its neighbour if it is still burning when the fire arrives. This prevents
-        burned-out cells from spreading fire and allows natural fire self-extinction
-        in low ROS areas.
+        Extinction is considered during propagation.
 
         :return: 2D float array of ignition times in seconds; inf = unreachable.
         """
@@ -128,8 +129,8 @@ class MTTSimulation:
         """
         Rate of spread (m/s) from cell (x, y) in direction (dx, dy).
 
-        Uses the polar form of the spread ellipse (Anderson 1983, Alexander 1985).
-        The ellipse axis is oriented along RAZ — the resultant spread azimuth
+        Uses the polar form of the spread ellipse
+        The ellipse axis is oriented along RAZ
         computed by Fire_Spread from the combined wind + slope vector (ST-X-3 eq 50).
         LB ratio is derived from WSV — the net effective wind speed (ST-X-3 eq 49).
 
@@ -139,7 +140,6 @@ class MTTSimulation:
         :param dy: Column component of spread direction (un-normalised).
         :return:   ROS in m/s; never negative.
         """
-
         ros_head = float(self.grid.ros[x][y])
 
         # no spread if <= 0
@@ -150,8 +150,8 @@ class MTTSimulation:
         # Convert raz to a 2D unit vector
         # this unit vector points in the direction fire spreads fastest
         razRad = math.radians(self.grid.raz[x][y])
-        xAxis = -math.sin(razRad)
-        yAxis = math.cos(razRad)
+        xAxis = -math.cos(razRad)
+        yAxis = math.sin(razRad)
 
         # LB ratio from WSV
         wsv = float(self.grid.wsv[x][y])
@@ -169,14 +169,13 @@ class MTTSimulation:
         # head-to-back ratio
         HB = (LB + math.sqrt(LB ** 2 - 1.0)) / max(LB - math.sqrt(LB ** 2 - 1.0), 1e-9)
 
-
         #TODO: Full ST-X-3 equation including BUI/BE. Requires drought data
         ros_back = ros_head / HB
 
         # Ellipse geometry
-        a = (ros_head + ros_back) / 2.0  # semi-major axis
+        b = (ros_head + ros_back) / 2.0  # semi-major axis
         c = (ros_head - ros_back) / 2.0  # focus offset
-        b = math.sqrt(max(a ** 2 - c ** 2, 1e-9))  # semi-minor axis
+        a = b / LB  # semi-minor axis
 
         # Angle between spread direction and head-fire axis
         spread_len = math.sqrt(dx ** 2 + dy ** 2)
@@ -184,9 +183,8 @@ class MTTSimulation:
         cos_theta = max(-1.0, min(1.0, cos_theta))
         sin_theta = math.sqrt(max(0.0, 1.0 - cos_theta ** 2))
 
-        # Polar form of ellipses
-        denom = math.sqrt((b * cos_theta) ** 2 + (a * sin_theta) ** 2)
-        return (a * b) / max(denom, 1e-9)
+        denom = math.sqrt((a * cos_theta) ** 2 + (b * sin_theta) ** 2)
+        return (a * (c * cos_theta + b)) / max(denom, 1e-9)
 
     def _TravelTime(self, x, y, nx, ny):
         """
