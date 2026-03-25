@@ -84,7 +84,10 @@ if st.button("Run Simulation"):
                 components.html(map_html, height=800, scrolling=False)
 
         except Exception as e:
+            import traceback
+
             st.error(f"Simulation failed: {str(e)}")
+            st.code(traceback.format_exc())
 
 
 
