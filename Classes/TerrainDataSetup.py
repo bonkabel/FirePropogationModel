@@ -42,6 +42,9 @@ class TerrainDataSetup:
         self.cellResolution = cellResolution
         self.tileDirectory = tileDirectory
 
+        import tempfile
+        if not os.path.isabs(self.tileDirectory):
+            self.tileDirectory = os.path.join(tempfile.gettempdir(), self.tileDirectory)
         os.makedirs(self.tileDirectory, exist_ok=True)
 
         self.latStep = cellResolution / 111
