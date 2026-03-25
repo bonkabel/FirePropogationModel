@@ -19,15 +19,32 @@ if st.button("Run Simulation"):
         st.write("Starting simulation...")
         try:
             st.write("Geocoding location...")
-            geolocator = Nominatim(user_agent="fire_sim")
-            location = geolocator.geocode(location_str)
+            st.write("Geocoding location...")
+            import requests
 
-            if not location:
+
+            def geocode(location_str):
+                response = requests.get(
+                    "https://geocoding-api.open-meteo.com/v1/search",
+                    params={"name": location_str, "count": 1},
+                    timeout=10
+                )
+                result = response.json()
+                if result.get("results"):
+                    r = result["results"][0]
+                    return r["latitude"], r["longitude"]
+                return None, None
+
+
+            lat, lon = geocode(location_str)
+            if lat is None:
+                st.error("Location not found.")
+                st.stop()
+
+            if not lat:
                 st.error("Location not found.")
             else:
-                lat = location.latitude
-                lon = location.longitude
-                gridSize = 50
+                gridSize = 100
                 cellResolution = 2
 
                 # Weather setup
