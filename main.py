@@ -2,6 +2,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 import numpy as np
 from geopy.geocoders import Nominatim
+import requests
 from Classes.Grid import Grid
 from Classes.Fire_Spread import Fire_Spread
 from Classes.MTTSimulation import MTTSimulation
@@ -14,19 +15,32 @@ st.title("Fire Simulation")
 
 location_str = st.text_input("Location", value="Phoenix Arizona, US")
 
+def geocode(location_str):
+    try:
+        response = requests.get(
+            "https://photon.komoot.io/api/",
+            params={"q": location_str, "limit": 1},
+            timeout=10
+        )
+        result = response.json()
+        if result.get("features"):
+            coords = result["features"][0]["geometry"]["coordinates"]
+            return coords[1], coords[0]  # lat, lon
+        return None, None
+    except Exception as e:
+        st.error(f"Geocoding error: {str(e)}")
+        return None, None
+
 if st.button("Run Simulation"):
     with st.spinner("Running simulation, please wait..."):
         st.write("Starting simulation...")
         try:
             st.write("Geocoding location...")
-            geolocator = Nominatim(user_agent="fire_sim", timeout=10)
-            location = geolocator.geocode(location_str)
+            lat, lon = geocode(location_str)
 
-            if not location:
+            if not lat:
                 st.error("Location not found.")
             else:
-                lat = location.latitude
-                lon = location.longitude
                 gridSize = 50
                 cellResolution = 2
 
