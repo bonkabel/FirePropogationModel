@@ -29,7 +29,7 @@ if st.button("Run Simulation"):
                 cellResolution = 2
 
                 # Weather setup
-                weatherSetup = WeatherDataSetup(lat, lon, gridSize, cellResolution, 10, False, False, True)
+                weatherSetup = WeatherDataSetup(lat, lon, gridSize, cellResolution, 10, False, True, True)
                 weatherLayers = weatherSetup.CreateWeatherLayers("current")
 
                 # Terrain setup
