@@ -19,21 +19,25 @@ if st.button("Run Simulation"):
         st.write("Starting simulation...")
         try:
             st.write("Geocoding location...")
-            st.write("Geocoding location...")
             import requests
 
 
             def geocode(location_str):
-                response = requests.get(
-                    "https://geocoding-api.open-meteo.com/v1/search",
-                    params={"name": location_str, "count": 1},
-                    timeout=10
-                )
-                result = response.json()
-                if result.get("results"):
-                    r = result["results"][0]
-                    return r["latitude"], r["longitude"]
-                return None, None
+                try:
+                    response = requests.get(
+                        "https://geocoding-api.open-meteo.com/v1/search",
+                        params={"name": location_str, "count": 1},
+                        timeout=10
+                    )
+                    result = response.json()
+                    st.write(result)  # keep this temporarily
+                    if result.get("results"):
+                        r = result["results"][0]
+                        return r["latitude"], r["longitude"]
+                    return None, None
+                except Exception as e:
+                    st.error(f"Geocoding error: {str(e)}")
+                    return None, None
 
 
             lat, lon = geocode(location_str)
