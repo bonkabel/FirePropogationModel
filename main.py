@@ -39,6 +39,7 @@ if st.button("Run Simulation"):
                 st.write("Setting up terrain...")
                 terrainSetup = TerrainDataSetup(lat, lon, gridSize, cellResolution)
                 terrainLayers = terrainSetup.CreateTerrainLayers()
+                st.write("Terrain done")
 
                 # ROS calculation
                 fireSpread = Fire_Spread(
