@@ -1,5 +1,6 @@
 import hashlib
 import math
+import tempfile
 import os
 import re
 import requests
@@ -32,17 +33,13 @@ class TerrainDataSetup:
         :param tileDirectory: Local directory to cache downloaded tiles, default is "tiles"
         """
 
-
-
-
-
         self.southLat = southLat
         self.westLon = westLon
         self.gridSize = gridSize
         self.cellResolution = cellResolution
         self.tileDirectory = tileDirectory
 
-        import tempfile
+
         if not os.path.isabs(self.tileDirectory):
             self.tileDirectory = os.path.join(tempfile.gettempdir(), self.tileDirectory)
         os.makedirs(self.tileDirectory, exist_ok=True)
@@ -61,7 +58,10 @@ class TerrainDataSetup:
         self._fetchEastLon = self.eastLon + self.margin * self.lonStep
 
     def _CacheKey(self):
-        """Generates a unique key based on grid parameters"""
+        """
+        Generates a hash string that uniquely identifies this grid configuration
+        :return: 12 character hex string unique to this grid configuration
+        """
         params = f"{self.southLat}_{self.westLon}_{self.gridSize}_{self.cellResolution}"
         return hashlib.md5(params.encode()).hexdigest()[:12]
 
@@ -328,7 +328,3 @@ class TerrainDataSetup:
             "water": water,
             "trees": trees
         }
-
-
-
-

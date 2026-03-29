@@ -12,12 +12,12 @@ import requests
 
 class WeatherDataSetup:
     """
-    Creates terrain layers for the simulation grid
+    Creates weather layers for the simulation grid
 
     Retrieves:
     - Weather data from open-meteo
 
-    Usage: Call CreateWeatherLayers() to create 2d arrays of weather data
+    Usage: Create an instance of WeatherDataSetup, call CreateWeatherLayers() to create 2d arrays of weather data
     """
     def __init__(self, southLat, westLon, gridSize, cellResolution, coarseResolution, cache, cacheData = False, useCachedData = False):
         """
@@ -30,7 +30,7 @@ class WeatherDataSetup:
         :param coarseResolution: Resolution of the coarse grid before interpolation. Determines what is retrieved from the API
         :param cache: Boolean value indicating whether API request caching and retry logic should be enabled
         :param cacheData: Boolean value indicating whether to cache the data or not
-        :param useCachedData: Boolean value indicating whether to use cached weather data. For testing purposes.
+        :param useCachedData: Boolean value indicating whether to use cached weather data.
         """
 
         self.southLat = southLat
