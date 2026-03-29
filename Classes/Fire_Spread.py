@@ -8,6 +8,16 @@ from Classes.constants import constants
 class Fire_Spread():
     def __init__(self, humidityGrid, windSpeedGrid, windDirectionGrid, precipitationGrid,
                  temperatureGrid, treesGrid, slopeMagnitudeGrid, slopeDirectionGrid):
+        """
+        :param humidityGrid: 2D np.ndarray, relative humidity per cell
+        :param windSpeedGrid: 2D np.ndarray, wind speed (km/h) per cell
+        :param windDirectionGrid: 2D np.ndarray, wind direction (degrees from north, meteorological)
+        :param precipitationGrid: 2D np.ndarray, precipitation (mm) per cell
+        :param temperatureGrid: 2D np.ndarray, temperature (degrees celsius)
+        :param treesGrid: 2D np.ndarray (bool/int), trees or not per cell
+        :param slopeMagnitudeGrid: 2D np.ndarray, terrain slope (degrees) per cell
+        :param slopeDirectionGrid: 2D np.ndarray, upslope direction per cell
+        """
         self.humidityGrid = humidityGrid
         self.windSpeedGrid = windSpeedGrid
         self.windDirectionGrid = windDirectionGrid
@@ -26,9 +36,11 @@ class Fire_Spread():
         and net effective wind direction (RAZ) for each cell in a 2D grid.
 
         :return:
-            ros: 2D array — rate of spread in metres/second
-            wsv: 2D array — net effective wind speed (km/h)
-            raz: 2D array — net effective wind direction (degrees)
+            ros: 2D array, rate of spread in metres/second
+            wsv: 2D array, net effective wind speed (km/h)
+            raz: 2D array, net effective wind direction (degrees)
+            ff: 2D array, fine fuel moisture function
+            isi: 2D array, initial spread index
         """
 
         print("humidity:", self.humidityGrid.shape)
@@ -92,11 +104,6 @@ class Fire_Spread():
                         )
                         kw = kl * 0.581 * math.exp(0.0365 * self.temperatureGrid[i][j])
                         m = ew - (ew - m0) / 10.0 ** kw
-                    else:  # ew < m0 < ed
-                        m = m0
-
-                elif m0 == ed:
-                    m = m0
 
                 else:  # m0 > ed
                     kl = (
@@ -153,8 +160,6 @@ class Fire_Spread():
                         40.0
 
                     ))
-
-
 
                 # Vector combination of wind and slope
                 wind_rad = math.radians((self.windDirectionGrid[i][j] + 180) % 360)

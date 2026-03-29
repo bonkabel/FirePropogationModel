@@ -2,11 +2,22 @@ import math
 import heapq
 import numpy as np
 import random
-
 from Classes.Grid import Grid
 
-
 class MTTSimulation:
+    """
+    Minimum Travel Time (MTT) fire spread simulation
+
+    Implements Dijkstra's algorithm over a 2D grid to compute ignition times for cells.
+    Using the ST-X-3 Fire Behaviour Prediction (FBP) system.
+
+    Usage:
+        sim = MTTSimulation(grid, dt=60)
+        sim.Ignite(row, col)                # or sim.IgniteRandom(n)
+        sim.Solve()
+        history = sim.history               # time stepped history snapshots
+
+    """
 
     def __init__(self, grid, dt=60):
         """

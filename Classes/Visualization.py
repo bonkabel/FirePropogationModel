@@ -18,10 +18,8 @@ class Visualization:
     Includes toggleable map overlays.
     """
 
-
     def __init__(self, simulation, weatherlayers, terrainlayers, southLat, westLon, northLat, eastLon):
         """
-
         :param simulation: A completed simulation
         :param weatherlayers: Mapping of weather variable names to 2D numpy arrays
         :param terrainlayers: Mapping of terrain variable names to 2D numpy arrays
@@ -43,9 +41,6 @@ class Visualization:
         self.wind_direction = weatherlayers["wind_direction"]
         self.trees = terrainlayers["trees"]
 
-    # ------------------------------------------------------------------
-    # Image helpers
-    # ------------------------------------------------------------------
 
     def _arrayToBase64(self, rgba):
         """
@@ -114,14 +109,12 @@ class Visualization:
         :param cmap: Name of a matplotlib coloormap
         :return: Encoded png data
         """
-
         cmap = plt.get_cmap(cmap)
         vmin = np.percentile(data, 2)
         vmax = np.percentile(data, 98)
         normalized = np.clip((data - vmin) / (vmax - vmin + 1e-9), 0, 1)
         rgba = (cmap(normalized) * 255).astype(np.uint8)
         return self._arrayToBase64(rgba)
-
 
     def _addDataLayer(self, m, data, cmap, label, show=False):
         """
@@ -182,6 +175,17 @@ class Visualization:
         grid.add_to(m)
 
     def _addWindLayer(self, m, direction, speed, sample=10):
+        """
+        Adds an arrow overlay to a map showing wind direction and speed.
+
+        Samples the wind grid at intervals and draws a line with an arrowhead for each sample point.
+        Arrows scale with wind speed. The arrows point in the direction the wind is traveling.
+
+        :param m: The map object to add the wind layer to
+        :param direction: 2D array, wind direction in degrees. Meteorological convention
+        :param speed: 2D array, wind speed in km/h
+        :param sample: Interval in grid cells between sampled wind positions
+        """
         rows, cols = direction.shape
         lat_step = (self.northLat - self.southLat) / rows
         lon_step = (self.eastLon - self.westLon) / cols
@@ -233,11 +237,12 @@ class Visualization:
 
     def saveTimeline(self, filename="fire_simulation.html", flask=False, streamlit=False):
         """
-        Builds and outputs the fire simulation timeline.
+        Builds and outputs the fire simulation timeline for visualization.
 
         :param filename: Output filename for standalone use
         :param flask: If True, saves to static/map.html and returns an iframe tag for Flask embedding.
                       If False, saves to filename and opens in browser.
+        :param streamlit: If True, returns the map as raw HTML for streamlit
         """
         m = folium.Map(
             location=[
