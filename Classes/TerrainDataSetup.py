@@ -193,13 +193,29 @@ class TerrainDataSetup:
 
         st.write("elevation tiles downloaded")
 
-        datasets = [rasterio.open(p) for p in paths]
+        datasets = []
+        fetchSize = self.gridSize + self.margin * 2
+        pixel_width = (self._fetchEastLon - self._fetchWestLon) / fetchSize
+        pixel_height = (self._fetchNorthLat - self._fetchSouthLat) / fetchSize
         try:
-            mosaic, transform = merge(datasets, bounds=(self._fetchWestLon, self._fetchSouthLat, self._fetchEastLon,
-                                                        self._fetchNorthLat))
+            for p in paths:
+                datasets.append(rasterio.open(p))
+
+            mosaic, transform = merge(
+                datasets,
+                bounds=(
+                    self._fetchWestLon,
+                    self._fetchSouthLat,
+                    self._fetchEastLon,
+                    self._fetchNorthLat
+                ),
+                res=(pixel_width, pixel_height),
+            )
         finally:
             for ds in datasets:
                 ds.close()
+
+        st.write("merged elevation tiles")
 
         cropped = mosaic[0].astype(np.float32)
         cropped[cropped < -1000] = np.nan
@@ -220,7 +236,7 @@ class TerrainDataSetup:
         tileNames = self._GetTileNames(3)
         paths = []
 
-        with ThreadPoolExecutor() as executor:
+        with ThreadPoolExecutor(max_workers=2) as executor:
             futures = {
                 executor.submit(
                     self._DownloadTile,
