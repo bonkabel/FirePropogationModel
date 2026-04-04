@@ -3,6 +3,7 @@ import math
 import tempfile
 import os
 import re
+import streamlit as st
 import requests
 import numpy as np
 import rasterio
@@ -189,6 +190,8 @@ class TerrainDataSetup:
         if not paths:
             raise RuntimeError("No elevation tiles were successfully downloaded")
 
+        st.write("elevation tiles downloaded")
+
         datasets = [rasterio.open(p) for p in paths]
         try:
             mosaic, transform = merge(datasets, bounds=(self._fetchWestLon, self._fetchSouthLat, self._fetchEastLon,
@@ -233,6 +236,8 @@ class TerrainDataSetup:
 
         if not paths:
             raise RuntimeError("No landcover tiles were successfully downloaded")
+
+        st.write("landcover tiles downloaded")
 
         datasets = [rasterio.open(p) for p in paths]
         try:
