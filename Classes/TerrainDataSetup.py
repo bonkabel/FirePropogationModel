@@ -208,6 +208,7 @@ class TerrainDataSetup:
 
     def _FetchLandCover(self):
         import streamlit as st
+        from rasterio.windows import from_bounds
 
         st.write("Getting land cover tile names...")
         tileNames = self._GetTileNames(3)
@@ -233,42 +234,21 @@ class TerrainDataSetup:
                     st.write(f"Tile {futures[future]} not found, skipping.")
 
         st.write("Reading and cropping tiles to bounding box...")
-        from rasterio.mask import mask as rio_mask
-        from shapely.geometry import box
-
-        bbox = box(self._fetchWestLon, self._fetchSouthLat, self._fetchEastLon, self._fetchNorthLat)
-
         arrays = []
-        transforms = []
 
         for path in paths:
             with rasterio.open(path) as ds:
-                cropped, transform = rio_mask(ds, [bbox.__geo_interface__], crop=True)
-                arrays.append(cropped[0])
-                transforms.append(transform)
+                window = from_bounds(
+                    self._fetchWestLon, self._fetchSouthLat,
+                    self._fetchEastLon, self._fetchNorthLat,
+                    ds.transform
+                )
+                cropped = ds.read(1, window=window)
+                arrays.append(cropped)
                 st.write(f"Cropped tile shape: {cropped.shape}")
 
         st.write("Merging cropped arrays...")
-        if len(arrays) == 1:
-            mosaic = arrays[0]
-        else:
-            from rasterio.merge import merge as rio_merge
-            import tempfile
-            # Re-merge only the small cropped pieces
-            tmp_paths = []
-            for i, (arr, transform) in enumerate(zip(arrays, transforms)):
-                meta = {"driver": "GTiff", "dtype": arr.dtype, "width": arr.shape[1],
-                        "height": arr.shape[0], "count": 1, "crs": "EPSG:4326", "transform": transform}
-                tmp = tempfile.NamedTemporaryFile(suffix=".tif", delete=False)
-                with rasterio.open(tmp.name, "w", **meta) as dst:
-                    dst.write(arr, 1)
-                tmp_paths.append(tmp.name)
-            datasets = [rasterio.open(p) for p in tmp_paths]
-            merged, _ = rio_merge(datasets)
-            for ds in datasets:
-                ds.close()
-            mosaic = merged[0]
-
+        mosaic = arrays[0] if len(arrays) == 1 else np.concatenate(arrays, axis=0)
         st.write(f"Mosaic shape after crop: {mosaic.shape}")
 
         st.write("Resampling land cover...")
