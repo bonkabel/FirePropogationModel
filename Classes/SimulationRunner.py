@@ -28,10 +28,13 @@ class SimulationRunner:
     def run(self, numIgnitions=10, dt=3600, weatherMode="current", cacheData=False, useCachedData=False):
         st.write("weatherDataSetup")
         weatherSetup = WeatherDataSetup(self.lat, self.lon, self.gridSize, self.cellResolution, 10, False, cacheData, useCachedData)
+        st.write("weatherDataSetup")
+
         self.weatherLayers = weatherSetup.CreateWeatherLayers(weatherMode)
 
         st.write("terrainDataSetup")
         terrainSetup = TerrainDataSetup(self.lat, self.lon, self.gridSize, self.cellResolution)
+        st.write("terrainDataSetup")
         self.terrainLayers = terrainSetup.CreateTerrainLayers()
 
 

@@ -280,17 +280,9 @@ class TerrainDataSetup:
         return magnitudeDegrees, directionDegrees
 
     def CreateTerrainLayers(self):
-        """
-        Fetches and computes all terrain layers for the simulation grid.
-        Loads from array cache if available, otherwise fetches from source and saves to cache.
+        import streamlit as st
 
-        :return: Dictionary containing:
-            - elevation: 2D float array of elevation in meters
-            - slope_magnitude: 2D float array of slope steepness in degrees
-            - slope_direction: 2D float array of slope direction in degrees, clockwise from north
-            - water: 2D boolean array, True where water is present
-            - trees: 2D boolean array, True where tree cover is present
-        """
+        st.write("Checking terrain array cache...")
         elevation = self._LoadArrayCache("elevation")
         slopeMagnitude = self._LoadArrayCache("slope_magnitude")
         slopeDirection = self._LoadArrayCache("slope_direction")
@@ -298,7 +290,7 @@ class TerrainDataSetup:
         trees = self._LoadArrayCache("trees")
 
         if all(v is not None for v in [elevation, slopeMagnitude, slopeDirection, water, trees]):
-            print("Loaded terrain from array cache")
+            st.write("Loaded terrain from array cache.")
             return {
                 "elevation": elevation,
                 "slope_magnitude": slopeMagnitude,
@@ -307,19 +299,31 @@ class TerrainDataSetup:
                 "trees": trees
             }
 
+        st.write("Fetching elevation tiles...")
         m = self.margin
         elevation = self._FetchElevation()
+        st.write(f"Elevation fetched. Shape: {elevation.shape}")
+
+        st.write("Computing slope...")
         slopeMagnitude, slopeDirection = self._ComputeSlope(elevation)
+        st.write("Slope computed.")
+
         elevation = elevation[m:-m, m:-m]
+
+        st.write("Fetching land cover tiles...")
         water, trees = self._FetchLandCover()
+        st.write(f"Land cover fetched.")
+
         water = water[m:-m, m:-m]
         trees = trees[m:-m, m:-m]
 
+        st.write("Saving terrain to array cache...")
         self._SaveArrayCache(elevation, "elevation")
         self._SaveArrayCache(slopeMagnitude, "slope_magnitude")
         self._SaveArrayCache(slopeDirection, "slope_direction")
         self._SaveArrayCache(water, "water")
         self._SaveArrayCache(trees, "trees")
+        st.write("Terrain complete.")
 
         return {
             "elevation": elevation,
