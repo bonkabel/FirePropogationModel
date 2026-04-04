@@ -256,13 +256,30 @@ class TerrainDataSetup:
 
         st.write("landcover tiles downloaded")
 
-        datasets = [rasterio.open(p) for p in paths]
+        datasets = []
+        fetchSize = self.gridSize + self.margin * 2
+        pixel_width = (self._fetchEastLon - self._fetchWestLon) / fetchSize
+        pixel_height = (self._fetchNorthLat - self._fetchSouthLat) / fetchSize
         try:
-            mosaic, transform = merge(datasets, bounds=(self._fetchWestLon, self._fetchSouthLat, self._fetchEastLon,
-                                                        self._fetchNorthLat))
+            for p in paths:
+                datasets.append(rasterio.open(p))
+
+            mosaic, transform = merge(
+                datasets,
+                bounds=(
+                    self._fetchWestLon,
+                    self._fetchSouthLat,
+                    self._fetchEastLon,
+                    self._fetchNorthLat
+                ),
+                res=(pixel_width, pixel_height),
+            )
         finally:
             for ds in datasets:
                 ds.close()
+
+        st.write("merged elevation tiles")
+
 
         cropped = mosaic[0]
 
