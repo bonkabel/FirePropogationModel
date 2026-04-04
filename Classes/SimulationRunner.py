@@ -26,15 +26,10 @@ class SimulationRunner:
         self.ros = self.wsv = self.raz = self.ff = self.isi = None
 
     def run(self, numIgnitions=10, dt=3600, weatherMode="current", cacheData=False, useCachedData=False):
-        st.write("weatherDataSetup")
         weatherSetup = WeatherDataSetup(self.lat, self.lon, self.gridSize, self.cellResolution, 10, False, cacheData, useCachedData)
-        st.write("weatherDataSetup")
-
         self.weatherLayers = weatherSetup.CreateWeatherLayers(weatherMode)
 
-        st.write("terrainDataSetup")
         terrainSetup = TerrainDataSetup(self.lat, self.lon, self.gridSize, self.cellResolution)
-        st.write("terrainDataSetup")
         self.terrainLayers = terrainSetup.CreateTerrainLayers()
 
 
@@ -48,19 +43,14 @@ class SimulationRunner:
             self.terrainLayers['slope_magnitude'],
             self.terrainLayers['slope_direction']
         )
-        st.write("roscalculation")
         self.ros, self.wsv, self.raz, self.ff, self.isi = fireSpread.roscalculation()
 
-        st.write("setting up grid")
         grid = Grid(self.gridSize, self.cellResolution, self.weatherLayers, self.terrainLayers,
                     self.ros, self.wsv, self.raz, self.ff, self.isi)
 
 
-        st.write("Initializing simulation")
         self.simulation = MTTSimulation(grid, dt=dt)
-        st.write("Ignite random")
         self.simulation.IgniteRandom(numIgnitions)
-        st.write("running solve")
         self.simulation.Solve()
 
         self.terrainSetup = terrainSetup  # kept for lat/lon bounds

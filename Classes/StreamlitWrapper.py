@@ -88,25 +88,17 @@ class StreamlitWrapper:
             gridSize = 50 if is_cloud else 100
             with st.spinner("Running simulation, please wait..."):
                 try:
-                    st.write("Geocoding location...")
                     lat, lon = self.geocode(location_str)
                     if not lat:
                         st.error("Location not found.")
                         return
-                    st.write(f"Geocoded: lat={lat:.4f}, lon={lon:.4f}")
 
-                    st.write("Fetching weather and terrain data, running simulation...")
                     import time
                     t0 = time.time()
                     result = _run_simulation(lat, lon, gridSize, use_cache)
-                    st.write(f"Simulation complete in {time.time() - t0:.1f}s")
-                    st.write(f"History frames: {len(result['simulation'].history)}")
-                    st.write(f"Grid size: {gridSize}x{gridSize}")
 
-                    st.write("Rendering stats...")
                     self.renderStats(result["stats"])
 
-                    st.write("Building visualization...")
                     viz = Visualization(
                         result["simulation"],
                         result["weather"],
@@ -117,13 +109,9 @@ class StreamlitWrapper:
                         eastLon=result["eastLon"],
                     )
 
-                    st.write("Generating map HTML...")
                     map_html = viz.saveTimeline(streamlit=True)
-                    st.write(f"Map HTML size: {len(map_html) / 1024:.1f} KB")
 
-                    st.write("Sending HTML to browser...")
                     components.html(map_html, height=800, scrolling=False)
-                    st.write("Done.")
 
                 except Exception as e:
                     import traceback

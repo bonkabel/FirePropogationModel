@@ -9,6 +9,7 @@ import rasterio
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from rasterio.merge import merge
 from scipy.ndimage import zoom
+from rasterio.windows import from_bounds
 
 
 class TerrainDataSetup:
@@ -181,42 +182,71 @@ class TerrainDataSetup:
         with ThreadPoolExecutor() as executor:
             futures = {executor.submit(self._DownloadCopernicusTile, tile): tile for tile in tileNames}
             for future in as_completed(futures):
-                try:
-                    paths.append(future.result())
-                except requests.HTTPError:
-                    print(f"Elevation tile {futures[future]} not found, skipping.")
+                paths.append(future.result())
 
         if not paths:
             raise RuntimeError("No elevation tiles were successfully downloaded")
 
-        datasets = [rasterio.open(p) for p in paths]
-        try:
-            mosaic, transform = merge(datasets, bounds=(self._fetchWestLon, self._fetchSouthLat, self._fetchEastLon,
-                                                        self._fetchNorthLat))
-        finally:
-            for ds in datasets:
-                ds.close()
+        arrays = []
+        transforms = []
 
-        cropped = mosaic[0].astype(np.float32)
-        cropped[cropped < -1000] = np.nan
+        for path in paths:
+            with rasterio.open(path) as ds:
+                window = from_bounds(
+                    self._fetchWestLon, self._fetchSouthLat,
+                    self._fetchEastLon, self._fetchNorthLat,
+                    ds.transform
+                )
+                cropped = ds.read(1, window=window).astype(np.float32)
+                cropped[cropped < -1000] = np.nan
+                arrays.append(cropped)
+                transforms.append(ds.window_transform(window))
+
+        if len(arrays) == 1:
+            mosaic = arrays[0]
+        else:
+            tmp_paths = []
+            for arr, path, transform in zip(arrays, paths, transforms):
+                with rasterio.open(path) as ds:
+                    meta = ds.meta.copy()
+                    meta.update({
+                        "height": arr.shape[0],
+                        "width": arr.shape[1],
+                        "transform": transform
+                    })
+                tmp = tempfile.NamedTemporaryFile(suffix=".tif", delete=False)
+                with rasterio.open(tmp.name, "w", **meta) as dst:
+                    dst.write(arr, 1)
+                tmp_paths.append(tmp.name)
+
+            datasets = [rasterio.open(p) for p in tmp_paths]
+            try:
+                merged, _ = merge(datasets)
+                mosaic = merged[0].astype(np.float32)
+            finally:
+                for ds in datasets:
+                    ds.close()
+                for p in tmp_paths:
+                    os.unlink(p)
+
 
         fetchSize = self.gridSize + self.margin * 2
-        scaleY = fetchSize / cropped.shape[0]
-        scaleX = fetchSize / cropped.shape[1]
+        scaleY = fetchSize / mosaic.shape[0]
+        scaleX = fetchSize / mosaic.shape[1]
 
-        return zoom(cropped, (scaleY, scaleX), order=1)
+        return zoom(mosaic, (scaleY, scaleX), order=1)
 
     def _FetchLandCover(self):
-        import streamlit as st
-        from rasterio.windows import from_bounds
+        """
+        Downloads and processes landcover data for the bounding box.
+        Resampled to match the simulation grid dimensions.
 
-        st.write("Getting land cover tile names...")
+        :return: Tuple of (water, trees), each a boolean numpy array of shape (gridSize, gridSize). True indicates the presence of that cover type
+        """
         tileNames = self._GetTileNames(3)
-        st.write(f"Tile names: {tileNames}")
 
         paths = []
 
-        st.write("Downloading land cover tiles...")
         with ThreadPoolExecutor() as executor:
             futures = {
                 executor.submit(
@@ -227,14 +257,13 @@ class TerrainDataSetup:
                 ): tile for tile in tileNames
             }
             for future in as_completed(futures):
-                try:
-                    paths.append(future.result())
-                    st.write(f"Downloaded tile: {futures[future]}")
-                except requests.HTTPError:
-                    st.write(f"Tile {futures[future]} not found, skipping.")
+                paths.append(future.result())
 
-        st.write("Reading and cropping tiles to bounding box...")
+        if not paths:
+            raise RuntimeError("No landcover tiles were successfully downloaded")
+
         arrays = []
+        transforms = []
 
         for path in paths:
             with rasterio.open(path) as ds:
@@ -245,18 +274,40 @@ class TerrainDataSetup:
                 )
                 cropped = ds.read(1, window=window)
                 arrays.append(cropped)
-                st.write(f"Cropped tile shape: {cropped.shape}")
+                transforms.append(ds.window_transform(window))
 
-        st.write("Merging cropped arrays...")
-        mosaic = arrays[0] if len(arrays) == 1 else np.concatenate(arrays, axis=0)
-        st.write(f"Mosaic shape after crop: {mosaic.shape}")
+        if len(arrays) == 1:
+            mosaic = arrays[0]
+        else:
+            tmp_paths = []
+            for arr, path, transform in zip(arrays, paths, transforms):
+                with rasterio.open(path) as ds:
+                    meta = ds.meta.copy()
+                    meta.update({
+                        "height": arr.shape[0],
+                        "width": arr.shape[1],
+                        "transform": transform
+                    })
+                tmp = tempfile.NamedTemporaryFile(suffix=".tif", delete=False)
+                with rasterio.open(tmp.name, "w", **meta) as dst:
+                    dst.write(arr, 1)
+                tmp_paths.append(tmp.name)
 
-        st.write("Resampling land cover...")
+            datasets = [rasterio.open(p) for p in tmp_paths]
+            try:
+                merged, _ = merge(datasets)
+                mosaic = merged[0]
+            finally:
+                for ds in datasets:
+                    ds.close()
+                for p in tmp_paths:
+                    os.unlink(p)
+
+
         fetchSize = self.gridSize + self.margin * 2
         scaleY = fetchSize / mosaic.shape[0]
         scaleX = fetchSize / mosaic.shape[1]
         resampled = zoom(mosaic, (scaleY, scaleX), order=0)
-        st.write(f"Resampling complete. Shape: {resampled.shape}")
 
         WATER_CLASS = 80
         TREE_CLASS = 10
@@ -288,9 +339,17 @@ class TerrainDataSetup:
         return magnitudeDegrees, directionDegrees
 
     def CreateTerrainLayers(self):
-        import streamlit as st
+        """
+        Fetches and computes all terrain layers for the simulation grid.
+        Loads from array cache if available, otherwise fetches from source and saves to cache.
 
-        st.write("Checking terrain array cache...")
+        :return: Dictionary containing:
+            - elevation: 2D float array of elevation in meters
+            - slope_magnitude: 2D float array of slope steepness in degrees
+            - slope_direction: 2D float array of slope direction in degrees, clockwise from north
+            - water: 2D boolean array, True where water is present
+            - trees: 2D boolean array, True where tree cover is present
+        """
         elevation = self._LoadArrayCache("elevation")
         slopeMagnitude = self._LoadArrayCache("slope_magnitude")
         slopeDirection = self._LoadArrayCache("slope_direction")
@@ -298,7 +357,7 @@ class TerrainDataSetup:
         trees = self._LoadArrayCache("trees")
 
         if all(v is not None for v in [elevation, slopeMagnitude, slopeDirection, water, trees]):
-            st.write("Loaded terrain from array cache.")
+            print("Loaded terrain from array cache")
             return {
                 "elevation": elevation,
                 "slope_magnitude": slopeMagnitude,
@@ -307,31 +366,19 @@ class TerrainDataSetup:
                 "trees": trees
             }
 
-        st.write("Fetching elevation tiles...")
         m = self.margin
         elevation = self._FetchElevation()
-        st.write(f"Elevation fetched. Shape: {elevation.shape}")
-
-        st.write("Computing slope...")
         slopeMagnitude, slopeDirection = self._ComputeSlope(elevation)
-        st.write("Slope computed.")
-
         elevation = elevation[m:-m, m:-m]
-
-        st.write("Fetching land cover tiles...")
         water, trees = self._FetchLandCover()
-        st.write(f"Land cover fetched.")
-
         water = water[m:-m, m:-m]
         trees = trees[m:-m, m:-m]
 
-        st.write("Saving terrain to array cache...")
         self._SaveArrayCache(elevation, "elevation")
         self._SaveArrayCache(slopeMagnitude, "slope_magnitude")
         self._SaveArrayCache(slopeDirection, "slope_direction")
         self._SaveArrayCache(water, "water")
         self._SaveArrayCache(trees, "trees")
-        st.write("Terrain complete.")
 
         return {
             "elevation": elevation,
