@@ -46,6 +46,8 @@ class SimulationRunner:
         grid = Grid(self.gridSize, self.cellResolution, self.weatherLayers, self.terrainLayers,
                     self.ros, self.wsv, self.raz, self.ff, self.isi)
 
+
+
         self.simulation = MTTSimulation(grid, dt=dt)
         self.simulation.IgniteRandom(numIgnitions)
         self.simulation.Solve()

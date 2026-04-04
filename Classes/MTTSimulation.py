@@ -69,7 +69,7 @@ class MTTSimulation:
         for x, y in random.sample(nonWater, numCells):
             self.Ignite(x, y)
 
-    def Solve(self):
+    def Solve(self, maxFrames=100):
         """
         Runs the MTT solver.
 
@@ -84,7 +84,7 @@ class MTTSimulation:
         for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
             ros = self._DirectionalROS(x, y, dx, dy)
             print(f"dx={dx:+d} dy={dy:+d} ROS={ros:.4f}")
-        self.history = self._BuildHistory()
+        self.history = self._BuildHistory(maxFrames=maxFrames)
 
     def _Dijkstra(self):
         """
@@ -223,7 +223,7 @@ class MTTSimulation:
             if 0 <= nx < size and 0 <= ny < size:
                 yield nx, ny
 
-    def _BuildHistory(self):
+    def _BuildHistory(self, maxFrames=200):
         """
         Reconstructs time-stepped state snapshots from the ignitionTime raster.
 
@@ -234,22 +234,29 @@ class MTTSimulation:
             return []
 
         maxTime = float(finite.max())
-        burnoutGrid = self._burnoutGrid  # use cached version
+        burnoutGrid = self._burnoutGrid
+
+        # Compute how many raw steps there would be, then stride to cap frames
+        totalSteps = int(maxTime / self.dt) + 2
+        step = max(1, totalSteps // maxFrames)
 
         history = []
         t = 0.0
+        i = 0
         while t <= maxTime + self.dt:
-            state = np.full(
-                (self.grid.gridSize, self.grid.gridSize),
-                Grid.UNBURNED,
-                dtype=int
-            )
-            ignitedMask = self.ignitionTime <= t
-            burnedOutMask = self.ignitionTime <= (t - burnoutGrid)
-            state[ignitedMask] = Grid.BURNING
-            state[burnedOutMask] = Grid.BURNED_OUT
-            history.append({'time': round(t, 2), 'state': state.copy()})
+            if i % step == 0:
+                state = np.full(
+                    (self.grid.gridSize, self.grid.gridSize),
+                    Grid.UNBURNED,
+                    dtype=int
+                )
+                ignitedMask = self.ignitionTime <= t
+                burnedOutMask = self.ignitionTime <= (t - burnoutGrid)
+                state[ignitedMask] = Grid.BURNING
+                state[burnedOutMask] = Grid.BURNED_OUT
+                history.append({'time': round(t, 2), 'state': state})  # drop .copy() too
             t += self.dt
+            i += 1
 
         return history
 

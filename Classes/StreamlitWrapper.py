@@ -72,7 +72,7 @@ class StreamlitWrapper:
 
         with st.form("sim_form"):
             location_str = st.text_input("Location", value="Phoenix Arizona, US")
-            is_cloud = st.checkbox("Use reduced grid (faster)", value=True)
+            is_cloud = st.checkbox("Use reduced grid (recommended for remote hosted)", value=True)
             use_cache = st.checkbox("Use cached data", value=False)
             col1, col2 = st.columns(2)
             with col1:
