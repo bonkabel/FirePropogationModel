@@ -283,23 +283,29 @@ class Visualization:
 
         affinity_params = np.linspace(np.min(self.sim.grid.isi), np.max(self.sim.grid.isi), 10)
         fire_affinity_grid = np.digitize(self.sim.grid.isi, affinity_params, right=True)
-        self._addDataLayer(m, fire_affinity_grid, cmap="hot", label="Fire Affinity", show=False)
+        self._addDataLayer(m, fire_affinity_grid, cmap="hot", label="Fire Affinity (Initial Spread Index)", show=False)
 
         folium.LayerControl(collapsed=False).add_to(m)
 
         map_name = m.get_name()
-        images = [self._stateToImage(record["state"]) for record in self.sim.history]
+        target_duration_ms = 10000
+        min_interval_ms = 50
+
+        step = max(1, len(self.sim.history) * min_interval_ms // target_duration_ms)
+        sampled = self.sim.history[::step]
+
+        images = [self._stateToImage(record["state"]) for record in sampled]
         images_js = str([f"data:image/png;base64,{img}" for img in images])
-        times_js = str([record["time"] for record in self.sim.history])
+        times_js = str([record["time"] for record in sampled])
         bounds_js = f"[[{self.southLat}, {self.westLon}], [{self.northLat}, {self.eastLon}]]"
-        interval_ms = max(50, 20000 // len(images))
+        interval_ms = min_interval_ms
 
         slider_html = f"""
         <div style="position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
                     z-index: 1000; background: white; padding: 10px; border-radius: 8px;
                     box-shadow: 0 2px 6px rgba(0,0,0,0.3); text-align: center;">
             <label><b>Step: <span id="stepLabel">0</span> / {len(images) - 1}
-                   (t=<span id="timeLabel">{int(self.sim.history[0]['time']) // 3600}h {(int(self.sim.history[0]['time']) % 3600) // 60}m {int(self.sim.history[0]['time']) % 60}s</span>)
+                   (Elapsed Time = <span id="timeLabel">{int(self.sim.history[0]['time']) // 3600}h {(int(self.sim.history[0]['time']) % 3600) // 60}m {int(self.sim.history[0]['time']) % 60}s</span>)
             <input type="range" min="0" max="{len(images) - 1}" value="0"
                    style="width: 300px;" id="stepSlider">
             <br>
