@@ -179,11 +179,12 @@ class TerrainDataSetup:
         tileNames = self._GetTileNames(1)
         paths = []
 
-        with ThreadPoolExecutor() as executor:
+        with ThreadPoolExecutor(max_workers=2) as executor:
             futures = {executor.submit(self._DownloadCopernicusTile, tile): tile for tile in tileNames}
             for future in as_completed(futures):
                 try:
                     paths.append(future.result())
+                    st.write("elevation tile downloaded")
                 except requests.HTTPError:
                     print(f"Elevation tile {futures[future]} not found, skipping.")
 
