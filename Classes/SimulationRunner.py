@@ -1,4 +1,5 @@
 import numpy as np
+import streamlit as st
 
 from Classes.Fire_Spread import Fire_Spread
 from Classes.Grid import Grid
@@ -25,40 +26,41 @@ class SimulationRunner:
         self.ros = self.wsv = self.raz = self.ff = self.isi = None
 
     def run(self, numIgnitions=10, dt=3600, weatherMode="current", cacheData=False, useCachedData=False):
-        print("Starting weather setup...")
-        weatherSetup = WeatherDataSetup(self.lat, self.lon, self.gridSize, self.cellResolution, 10, False, cacheData,
-                                        useCachedData)
-
-        print("Fetching weather layers...")
+        st.write("weatherDataSetup")
+        weatherSetup = WeatherDataSetup(self.lat, self.lon, self.gridSize, self.cellResolution, 10, False, cacheData, useCachedData)
         self.weatherLayers = weatherSetup.CreateWeatherLayers(weatherMode)
-        print(f"Weather layers complete. Shape: {self.weatherLayers['temperature'].shape}")
 
-        print("Starting terrain setup...")
+        st.write("terrainDataSetup")
         terrainSetup = TerrainDataSetup(self.lat, self.lon, self.gridSize, self.cellResolution)
-
-        print("Fetching terrain layers...")
         self.terrainLayers = terrainSetup.CreateTerrainLayers()
-        print("Terrain layers complete.")
 
-        print("Running fire spread calculation...")
-        fireSpread = Fire_Spread(...)
+
+        fireSpread = Fire_Spread(
+            self.weatherLayers['humidity'],
+            self.weatherLayers['wind_speed'],
+            self.weatherLayers['wind_direction'],
+            self.weatherLayers['precipitation'],
+            self.weatherLayers['temperature'],
+            self.terrainLayers['trees'],
+            self.terrainLayers['slope_magnitude'],
+            self.terrainLayers['slope_direction']
+        )
+        st.write("roscalculation")
         self.ros, self.wsv, self.raz, self.ff, self.isi = fireSpread.roscalculation()
-        print(f"Fire spread complete. Mean ROS: {self.ros.mean():.4f}")
 
-        print("Building grid...")
+        st.write("setting up grid")
         grid = Grid(self.gridSize, self.cellResolution, self.weatherLayers, self.terrainLayers,
                     self.ros, self.wsv, self.raz, self.ff, self.isi)
 
-        print("Running MTT simulation...")
+
+        st.write("Initializing simulation")
         self.simulation = MTTSimulation(grid, dt=dt)
+        st.write("Ignite random")
         self.simulation.IgniteRandom(numIgnitions)
-
-        print("Solving...")
+        st.write("running solve")
         self.simulation.Solve()
-        print(f"Solve complete. History frames: {len(self.simulation.history)}")
 
-        self.terrainSetup = terrainSetup
-        print("SimulationRunner complete.")
+        self.terrainSetup = terrainSetup  # kept for lat/lon bounds
 
     def getMeanWindDirection(self):
         wd = self.weatherLayers['wind_direction']
