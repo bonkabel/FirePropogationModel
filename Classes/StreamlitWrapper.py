@@ -1,12 +1,34 @@
 import requests
 import streamlit as st
 import streamlit.components.v1 as components
+import numpy as np
 
 from Classes.SimulationRunner import SimulationRunner
 from Classes.Visualization import Visualization
 
 
-class FireSimulationApp:
+@st.cache_data
+def _run_simulation(lat, lon, gridSize, useCachedData):
+    runner = SimulationRunner(lat, lon, gridSize)
+    runner.run(cacheData=False, useCachedData=useCachedData)
+    return {
+        "stats": runner.getStats(),
+        "weather": runner.weatherLayers,
+        "terrain": runner.terrainLayers,
+        "ros": runner.ros,
+        "wsv": runner.wsv,
+        "raz": runner.raz,
+        "ff": runner.ff,
+        "isi": runner.isi,
+        "simulation": runner.simulation,
+        "southLat": runner.terrainSetup.southLat,
+        "westLon": runner.terrainSetup.westLon,
+        "northLat": runner.terrainSetup.northLat,
+        "eastLon": runner.terrainSetup.eastLon,
+    }
+
+
+class StreamlitWrapper:
     """Streamlit UI wrapper around SimulationRunner."""
 
     def __init__(self):
@@ -42,14 +64,28 @@ class FireSimulationApp:
             st.metric("Mean ROS", f"{stats['mean_ros']:.4f} m/s")
         with col4:
             st.metric("Mean ISI", f"{stats['mean_isi']:.2f}")
+            st.metric("Mean Spread Direction", f"{stats['mean_spread_direction']:.1f}°")
+            st.metric("Mean Slope Direction", f"{stats['mean_slope_direction']:.1f}°")
 
     def run(self):
         st.title("Fire Simulation")
-        location_str = st.text_input("Location", value="Phoenix Arizona, US")
-        is_cloud = st.checkbox("Use reduced grid (faster)", value=True)
-        gridSize = 50 if is_cloud else 100
 
-        if st.button("Run Simulation"):
+        with st.form("sim_form"):
+            location_str = st.text_input("Location", value="Phoenix Arizona, US")
+            is_cloud = st.checkbox("Use reduced grid (faster)", value=True)
+            use_cache = st.checkbox("Use cached data", value=False)
+            col1, col2 = st.columns(2)
+            with col1:
+                submitted = st.form_submit_button("Run Simulation")
+            with col2:
+                clear = st.form_submit_button("Clear Cache")
+
+        if clear:
+            _run_simulation.clear()
+            st.success("Cache cleared.")
+
+        if submitted:
+            gridSize = 50 if is_cloud else 100
             with st.spinner("Running simulation, please wait..."):
                 try:
                     lat, lon = self.geocode(location_str)
@@ -57,18 +93,18 @@ class FireSimulationApp:
                         st.error("Location not found.")
                         return
 
-                    runner = self._runSimulation(lat, lon, gridSize)  # ← changed
+                    result = _run_simulation(lat, lon, gridSize, use_cache)
 
-                    self.renderStats(runner.getStats())
+                    self.renderStats(result["stats"])
 
                     viz = Visualization(
-                        runner.simulation,
-                        runner.weatherLayers,
-                        runner.terrainLayers,
-                        southLat=runner.terrainSetup.southLat,
-                        westLon=runner.terrainSetup.westLon,
-                        northLat=runner.terrainSetup.northLat,
-                        eastLon=runner.terrainSetup.eastLon
+                        result["simulation"],
+                        result["weather"],
+                        result["terrain"],
+                        southLat=result["southLat"],
+                        westLon=result["westLon"],
+                        northLat=result["northLat"],
+                        eastLon=result["eastLon"],
                     )
                     map_html = viz.saveTimeline(streamlit=True)
                     components.html(map_html, height=800, scrolling=False)
@@ -77,11 +113,3 @@ class FireSimulationApp:
                     import traceback
                     st.error(f"Simulation failed: {str(e)}")
                     st.code(traceback.format_exc())
-
-    @st.cache_data
-    def _runSimulation(_self, lat, lon, gridSize):  # _self prefix tells Streamlit not to hash it
-        runner = SimulationRunner(lat, lon, gridSize)
-        runner.run(cacheData=False)
-        return runner
-
-

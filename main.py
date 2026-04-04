@@ -1,3 +1,3 @@
-from Classes.StreamlitWrapper import FireSimulationApp
+from Classes.StreamlitWrapper import StreamlitWrapper
 
-FireSimulationApp().run()
+StreamlitWrapper().run()

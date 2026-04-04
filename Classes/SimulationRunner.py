@@ -59,6 +59,20 @@ class SimulationRunner:
             np.cos(np.radians(wd)).mean()
         )) % 360
 
+    def getMeanSpreadDirection(self):
+        raz = self.raz
+        return np.degrees(np.arctan2(
+            np.sin(np.radians(raz)).mean(),
+            np.cos(np.radians(raz)).mean()
+        )) % 360
+
+    def getMeanSlopeDirection(self):
+        sd = self.terrainLayers['slope_direction']
+        return np.degrees(np.arctan2(
+            np.sin(np.radians(sd)).mean(),
+            np.cos(np.radians(sd)).mean()
+        )) % 360
+
     def getStats(self):
         return {
             "mean_temperature": self.weatherLayers['temperature'].mean(),
@@ -68,4 +82,6 @@ class SimulationRunner:
             "mean_precipitation": self.weatherLayers['precipitation'].mean(),
             "mean_ros": self.ros.mean(),
             "mean_isi": self.isi.mean(),
+            "mean_spread_direction": self.getMeanSpreadDirection(),
+            "mean_slope_direction": self.getMeanSlopeDirection()
         }
