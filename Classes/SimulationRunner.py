@@ -25,34 +25,40 @@ class SimulationRunner:
         self.ros = self.wsv = self.raz = self.ff = self.isi = None
 
     def run(self, numIgnitions=10, dt=3600, weatherMode="current", cacheData=False, useCachedData=False):
-        weatherSetup = WeatherDataSetup(self.lat, self.lon, self.gridSize, self.cellResolution, 10, False, cacheData, useCachedData)
+        print("Starting weather setup...")
+        weatherSetup = WeatherDataSetup(self.lat, self.lon, self.gridSize, self.cellResolution, 10, False, cacheData,
+                                        useCachedData)
+
+        print("Fetching weather layers...")
         self.weatherLayers = weatherSetup.CreateWeatherLayers(weatherMode)
+        print(f"Weather layers complete. Shape: {self.weatherLayers['temperature'].shape}")
 
+        print("Starting terrain setup...")
         terrainSetup = TerrainDataSetup(self.lat, self.lon, self.gridSize, self.cellResolution)
+
+        print("Fetching terrain layers...")
         self.terrainLayers = terrainSetup.CreateTerrainLayers()
+        print("Terrain layers complete.")
 
-        fireSpread = Fire_Spread(
-            self.weatherLayers['humidity'],
-            self.weatherLayers['wind_speed'],
-            self.weatherLayers['wind_direction'],
-            self.weatherLayers['precipitation'],
-            self.weatherLayers['temperature'],
-            self.terrainLayers['trees'],
-            self.terrainLayers['slope_magnitude'],
-            self.terrainLayers['slope_direction']
-        )
+        print("Running fire spread calculation...")
+        fireSpread = Fire_Spread(...)
         self.ros, self.wsv, self.raz, self.ff, self.isi = fireSpread.roscalculation()
+        print(f"Fire spread complete. Mean ROS: {self.ros.mean():.4f}")
 
+        print("Building grid...")
         grid = Grid(self.gridSize, self.cellResolution, self.weatherLayers, self.terrainLayers,
                     self.ros, self.wsv, self.raz, self.ff, self.isi)
 
-
-
+        print("Running MTT simulation...")
         self.simulation = MTTSimulation(grid, dt=dt)
         self.simulation.IgniteRandom(numIgnitions)
-        self.simulation.Solve()
 
-        self.terrainSetup = terrainSetup  # kept for lat/lon bounds
+        print("Solving...")
+        self.simulation.Solve()
+        print(f"Solve complete. History frames: {len(self.simulation.history)}")
+
+        self.terrainSetup = terrainSetup
+        print("SimulationRunner complete.")
 
     def getMeanWindDirection(self):
         wd = self.weatherLayers['wind_direction']
