@@ -9,7 +9,6 @@ import rasterio
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from rasterio.merge import merge
 from scipy.ndimage import zoom
-from rasterio.windows import from_bounds
 
 
 class TerrainDataSetup:
@@ -176,6 +175,44 @@ class TerrainDataSetup:
 
         :return: 2D numpy array of elevation values in meters, shape (gridSize, gridSize)
         """
+        tileNames = self._GetTileNames(1)
+        paths = []
+
+        with ThreadPoolExecutor() as executor:
+            futures = {executor.submit(self._DownloadCopernicusTile, tile): tile for tile in tileNames}
+            for future in as_completed(futures):
+                try:
+                    paths.append(future.result())
+                except requests.HTTPError:
+                    print(f"Elevation tile {futures[future]} not found, skipping.")
+
+        if not paths:
+            raise RuntimeError("No elevation tiles were successfully downloaded")
+
+        datasets = [rasterio.open(p) for p in paths]
+        try:
+            mosaic, transform = merge(datasets, bounds=(self._fetchWestLon, self._fetchSouthLat, self._fetchEastLon,
+                                                        self._fetchNorthLat))
+        finally:
+            for ds in datasets:
+                ds.close()
+
+        cropped = mosaic[0].astype(np.float32)
+        cropped[cropped < -1000] = np.nan
+
+        fetchSize = self.gridSize + self.margin * 2
+        scaleY = fetchSize / cropped.shape[0]
+        scaleX = fetchSize / cropped.shape[1]
+
+        return zoom(cropped, (scaleY, scaleX), order=1)
+
+    def _FetchLandCover(self):
+        """
+        Downloads and processes landcover data for the bounding box.
+        Resampled to match the simulation grid dimensions.
+
+        :return: Tuple of (water, trees), each a boolean numpy array of shape (gridSize, gridSize). True indicates the presence of that cover type
+        """
         tileNames = self._GetTileNames(3)
         paths = []
 
@@ -191,122 +228,27 @@ class TerrainDataSetup:
             for future in as_completed(futures):
                 try:
                     paths.append(future.result())
-                except Exception as e:
-                    print(f"Skipping tile: {e}")
+                except requests.HTTPError:
+                    print(f"LandCover tile {futures[future]} not found, skipping.")
 
         if not paths:
             raise RuntimeError("No landcover tiles were successfully downloaded")
 
-        # Merge FIRST
         datasets = [rasterio.open(p) for p in paths]
         try:
-            merged, transform = merge(datasets)
-            mosaic = merged[0]
+            mosaic, transform = merge(datasets, bounds=(self._fetchWestLon, self._fetchSouthLat, self._fetchEastLon,
+                                                        self._fetchNorthLat))
         finally:
             for ds in datasets:
                 ds.close()
 
-        # Crop ONCE
-        window = from_bounds(
-            self._fetchWestLon, self._fetchSouthLat,
-            self._fetchEastLon, self._fetchNorthLat,
-            transform
-        )
-
-        row_start = int(window.row_off)
-        row_end = int(window.row_off + window.height)
-        col_start = int(window.col_off)
-        col_end = int(window.col_off + window.width)
-
-        mosaic = mosaic[row_start:row_end, col_start:col_end]
-
-        if mosaic.size == 0:
-            raise RuntimeError("Cropped landcover mosaic is empty")
-
-        # Resample (nearest neighbor)
-        fetchSize = self.gridSize + self.margin * 2
-        scaleY = fetchSize / mosaic.shape[0]
-        scaleX = fetchSize / mosaic.shape[1]
-
-        resampled = zoom(mosaic, (scaleY, scaleX), order=0)
-
-        WATER_CLASS = 80
-        TREE_CLASS = 10
-
-        return resampled == WATER_CLASS, resampled == TREE_CLASS
-
-    def _FetchLandCover(self):
-        """
-        Downloads and processes landcover data for the bounding box.
-        Resampled to match the simulation grid dimensions.
-
-        :return: Tuple of (water, trees), each a boolean numpy array of shape (gridSize, gridSize). True indicates the presence of that cover type
-        """
-        tileNames = self._GetTileNames(3)
-
-        paths = []
-
-        with ThreadPoolExecutor() as executor:
-            futures = {
-                executor.submit(
-                    self._DownloadTile,
-                    tile,
-                    "https://esa-worldcover.s3.amazonaws.com/v200/2021/map",
-                    "ESA_WorldCover_10m_2021_v200_{tile}_Map.tif"
-                ): tile for tile in tileNames
-            }
-            for future in as_completed(futures):
-                paths.append(future.result())
-
-        if not paths:
-            raise RuntimeError("No landcover tiles were successfully downloaded")
-
-        arrays = []
-        transforms = []
-
-        for path in paths:
-            with rasterio.open(path) as ds:
-                window = from_bounds(
-                    self._fetchWestLon, self._fetchSouthLat,
-                    self._fetchEastLon, self._fetchNorthLat,
-                    ds.transform
-                )
-                cropped = ds.read(1, window=window)
-                arrays.append(cropped)
-                transforms.append(ds.window_transform(window))
-
-        if len(arrays) == 1:
-            mosaic = arrays[0]
-        else:
-            tmp_paths = []
-            for arr, path, transform in zip(arrays, paths, transforms):
-                with rasterio.open(path) as ds:
-                    meta = ds.meta.copy()
-                    meta.update({
-                        "height": arr.shape[0],
-                        "width": arr.shape[1],
-                        "transform": transform
-                    })
-                tmp = tempfile.NamedTemporaryFile(suffix=".tif", delete=False)
-                with rasterio.open(tmp.name, "w", **meta) as dst:
-                    dst.write(arr, 1)
-                tmp_paths.append(tmp.name)
-
-            datasets = [rasterio.open(p) for p in tmp_paths]
-            try:
-                merged, _ = merge(datasets)
-                mosaic = merged[0]
-            finally:
-                for ds in datasets:
-                    ds.close()
-                for p in tmp_paths:
-                    os.unlink(p)
-
+        cropped = mosaic[0]
 
         fetchSize = self.gridSize + self.margin * 2
-        scaleY = fetchSize / mosaic.shape[0]
-        scaleX = fetchSize / mosaic.shape[1]
-        resampled = zoom(mosaic, (scaleY, scaleX), order=0)
+        scaleY = fetchSize / cropped.shape[0]
+        scaleX = fetchSize / cropped.shape[1]
+
+        resampled = zoom(cropped, (scaleY, scaleX), order=0)
 
         WATER_CLASS = 80
         TREE_CLASS = 10
