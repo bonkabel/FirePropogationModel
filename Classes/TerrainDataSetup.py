@@ -184,14 +184,11 @@ class TerrainDataSetup:
             for future in as_completed(futures):
                 try:
                     paths.append(future.result())
-                    st.write("elevation tile downloaded")
                 except requests.HTTPError:
                     print(f"Elevation tile {futures[future]} not found, skipping.")
 
         if not paths:
             raise RuntimeError("No elevation tiles were successfully downloaded")
-
-        st.write("elevation tiles downloaded")
 
         datasets = []
         fetchSize = self.gridSize + self.margin * 2
@@ -214,8 +211,6 @@ class TerrainDataSetup:
         finally:
             for ds in datasets:
                 ds.close()
-
-        st.write("merged elevation tiles")
 
         cropped = mosaic[0].astype(np.float32)
         cropped[cropped < -1000] = np.nan
@@ -254,7 +249,6 @@ class TerrainDataSetup:
         if not paths:
             raise RuntimeError("No landcover tiles were successfully downloaded")
 
-        st.write("landcover tiles downloaded")
 
         datasets = []
         fetchSize = self.gridSize + self.margin * 2
@@ -277,9 +271,6 @@ class TerrainDataSetup:
         finally:
             for ds in datasets:
                 ds.close()
-
-        st.write("merged elevation tiles")
-
 
         cropped = mosaic[0]
 

@@ -71,8 +71,8 @@ class StreamlitWrapper:
         st.title("Fire Simulation")
 
         with st.form("sim_form"):
-            location_str = st.text_input("Location", value="Phoenix Arizona, US")
-            is_cloud = st.checkbox("Use reduced grid (faster)", value=True)
+            location_str = st.text_input("Location", value="Yao, Chad, Africa")
+            is_cloud = st.checkbox("Use reduced grid (faster)", value=False)
             use_cache = st.checkbox("Use cached data", value=False)
             col1, col2 = st.columns(2)
             with col1:
