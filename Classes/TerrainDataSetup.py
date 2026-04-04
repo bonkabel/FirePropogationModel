@@ -207,15 +207,15 @@ class TerrainDataSetup:
         return zoom(cropped, (scaleY, scaleX), order=1)
 
     def _FetchLandCover(self):
-        """
-        Downloads and processes landcover data for the bounding box.
-        Resampled to match the simulation grid dimensions.
+        import streamlit as st
 
-        :return: Tuple of (water, trees), each a boolean numpy array of shape (gridSize, gridSize). True indicates the presence of that cover type
-        """
+        st.write("Getting land cover tile names...")
         tileNames = self._GetTileNames(3)
+        st.write(f"Tile names: {tileNames}")
+
         paths = []
 
+        st.write("Downloading land cover tiles...")
         with ThreadPoolExecutor() as executor:
             futures = {
                 executor.submit(
@@ -228,13 +228,16 @@ class TerrainDataSetup:
             for future in as_completed(futures):
                 try:
                     paths.append(future.result())
+                    st.write(f"Downloaded tile: {futures[future]}")
                 except requests.HTTPError:
-                    print(f"LandCover tile {futures[future]} not found, skipping.")
+                    st.write(f"Tile {futures[future]} not found, skipping.")
 
-        if not paths:
-            raise RuntimeError("No landcover tiles were successfully downloaded")
+        st.write(f"All tiles downloaded. Paths: {paths}")
 
+        st.write("Opening tile datasets...")
         datasets = [rasterio.open(p) for p in paths]
+
+        st.write("Merging tiles...")
         try:
             mosaic, transform = merge(datasets, bounds=(self._fetchWestLon, self._fetchSouthLat, self._fetchEastLon,
                                                         self._fetchNorthLat))
@@ -242,13 +245,15 @@ class TerrainDataSetup:
             for ds in datasets:
                 ds.close()
 
-        cropped = mosaic[0]
+        st.write(f"Merge complete. Mosaic shape: {mosaic.shape}")
 
+        st.write("Resampling land cover...")
+        cropped = mosaic[0]
         fetchSize = self.gridSize + self.margin * 2
         scaleY = fetchSize / cropped.shape[0]
         scaleX = fetchSize / cropped.shape[1]
-
         resampled = zoom(cropped, (scaleY, scaleX), order=0)
+        st.write(f"Resampling complete. Shape: {resampled.shape}")
 
         WATER_CLASS = 80
         TREE_CLASS = 10
